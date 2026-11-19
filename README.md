@@ -98,7 +98,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 - `Sensitive()` adds an online check with NICE; when NICE does not answer, the request is refused with 503.
 - `StartFeed` makes a token issued before an access change refused with `token_stale`.
 
-The full contract is in [docs/token-verification.md](docs/token-verification.md) (in Indonesian).
+The full contract is in [docs/token-verification.md](docs/token-verification.md).
 
 ## A backend that calls another service on behalf of a user
 

@@ -1,45 +1,43 @@
 # nice-auth-sdk
 
-SDK Go untuk NICE. Ada dua paket, satu untuk tiap sisi integrasi:
+The Go SDK for NICE. It has two packages, one for each side of an integration:
 
-| Anda menulis | Paket |
+| You write | Package |
 |---|---|
-| pemanggil yang mengambil token lalu memanggil service (Service Account, backend, exchange) | `credentials` |
-| service yang menerima dan memeriksa token NICE | `verify` |
+| a caller that gets tokens and then calls services (Service Account, backend, exchange) | `credentials` |
+| a service that receives and checks NICE tokens | `verify` |
 
-Kedua paket tidak saling mengimpor. `verify` hanya butuh pustaka standar dan `go-jose`, jadi service yang hanya memverifikasi tidak membawa kode sisi pemanggil.
+The two packages do not import each other. `verify` needs only the standard library and `go-jose`, so a service that only verifies does not carry the caller side.
 
-English: [README.en.md](README.en.md).
-
-## Pasang
+## Install
 
 ```bash
 go get github.com/ABA-Developer/nice-auth-sdk
 ```
 
-Butuh Go 1.24 atau sesudahnya.
+It needs Go 1.24 or later.
 
-## Contoh yang bisa dijalankan
+## Runnable examples
 
-Tiap folder di [`examples/`](examples) adalah satu program `main` untuk satu peran. Pengaturannya dibaca dari environment dan tertulis di komentar paling atas `main.go`.
+Each folder in [`examples/`](examples) is one `main` program for one role. Its settings come from the environment and are listed in the comment at the top of `main.go`.
 
-| Contoh | Peran | Yang diperlihatkan |
+| Example | Role | What it shows |
 |---|---|---|
-| [`examples/service_account`](examples/service_account/main.go) | pemanggil mesin | `ConfigFromEnv`, `HTTPClient`, membaca galat |
-| [`examples/service`](examples/service/main.go) | service yang menerima token | `Middleware`, `Require`, `Sensitive`, feed, tenant |
-| [`examples/exchange`](examples/exchange/main.go) | backend yang memanggil service lain atas nama user | `NewExchange`, `DoAs` |
-| [`examples/connect`](examples/connect/main.go) | backend web yang melogin-kan user dan menyimpan refresh token | `AuthorizeURL`, `HandleCallback`, `Do`, `Disconnect` |
+| [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
+| [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, tenants |
+| [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs` |
+| [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `Do`, `Disconnect` |
 
 ```bash
 export NICE_ISSUER=https://auth.example.com NICE_SA_ID=sa_... NICE_SA_API_KEY=...
 SERVICE_SLUG=nadi SERVICE_URL=https://nadi.example.com go run ./examples/service_account
 ```
 
-Potongan di bawah meringkas tiga yang pertama.
+The snippets below summarize the first three.
 
-## Pemanggil mesin (Service Account)
+## A machine caller (Service Account)
 
-Service Account membuktikan API key-nya ke NICE (`client_credentials`), lalu memanggil service dengan token yang didapat. SDK menyimpan token di memori, memperbaruinya di latar belakang, dan mengulang request satu kali bila service menjawab 401 `token_stale`.
+A Service Account proves its API key to NICE (`client_credentials`), then calls a service with the token it gets. The SDK keeps the token in memory, renews it in the background, and sends a request once more when the service answers 401 `token_stale`.
 
 ```go
 import "github.com/ABA-Developer/nice-auth-sdk/credentials"
@@ -48,7 +46,7 @@ c, err := credentials.NewFromEnv() // NICE_ISSUER, NICE_SA_ID, NICE_SA_API_KEY
 if err != nil {
 	log.Fatal(err)
 }
-go c.Run(ctx) // perbarui token yang sedang dipakai
+go c.Run(ctx) // renew the tokens in use
 
 hc, err := c.HTTPClient(credentials.Key{Audience: "nadi"}, "https://nadi.example.com")
 if err != nil {
@@ -57,19 +55,19 @@ if err != nil {
 resp, err := hc.Get("https://nadi.example.com/devices")
 ```
 
-Client dari `HTTPClient` hanya mengirim token ke alamat service yang disebut. Request atau redirect ke host lain gagal dengan `ErrForeignHost`.
+The client of `HTTPClient` sends the token to the named service address only. A request or a redirect to another host fails with `ErrForeignHost`.
 
-## Service yang menerima token
+## A service that receives tokens
 
-Service memverifikasi token sendiri, tanpa bertanya ke NICE di tiap request: tanda tangan (RS256, JWKS), `iss`, `aud`, masa berlaku, dan perubahan akses dari feed.
+A service verifies the token itself, without asking NICE on each request: the signature (RS256, JWKS), `iss`, `aud`, the lifetime, and the access changes from the feed.
 
 ```go
 import "github.com/ABA-Developer/nice-auth-sdk/verify"
 
 v, err := verify.New(verify.Config{
 	Issuer:   "https://auth.example.com",
-	Service:  "nadi",                    // slug service; token harus untuk service ini saja
-	JWKSFile: "/var/lib/nadi/jwks.json", // service tetap bisa memverifikasi bila restart saat NICE mati
+	Service:  "nadi",                    // the slug of the service; a token must be for it alone
+	JWKSFile: "/var/lib/nadi/jwks.json", // the service still verifies after a restart while NICE is down
 	Checker:  verify.NewHTTPChecker("https://auth.example.com", apiKey),
 })
 if err != nil {
@@ -86,66 +84,70 @@ mux.Handle("DELETE /devices/{id}", v.Require("nadi.devices.delete", verify.Sensi
 log.Fatal(http.ListenAndServe(":8081", v.Middleware(mux)))
 ```
 
-Handler membaca siapa pemanggilnya dari context:
+A handler reads who is calling from the context:
 
 ```go
 func list(w http.ResponseWriter, r *http.Request) {
-	claims, _ := verify.FromContext(r.Context())       // sub, organisasi, project, izin
-	tenant, _ := verify.TenantFromContext(r.Context()) // tenant dari organisasi di token, bukan dari input klien
+	claims, _ := verify.FromContext(r.Context())       // sub, organization, project, permissions
+	tenant, _ := verify.TenantFromContext(r.Context()) // the tenant of the organization in the token, never from client input
 	// ...
 }
 ```
 
-- `Require` memeriksa izin dari klaim `perms`.
-- `Sensitive()` menambah pemeriksaan online ke NICE; bila NICE tidak menjawab, request ditolak 503.
-- `StartFeed` membuat token yang terbit sebelum akses berubah ditolak dengan `token_stale`.
+- `Require` checks the permission in the `perms` claim.
+- `Sensitive()` adds an online check with NICE; when NICE does not answer, the request is refused with 503.
+- `StartFeed` makes a token issued before an access change refused with `token_stale`.
 
-Kontrak lengkapnya ada di [docs/token-verification.md](docs/token-verification.md).
+The full contract is in [docs/token-verification.md](docs/token-verification.md) (in Indonesian).
 
-## Backend yang memanggil service lain atas nama user
+## A backend that calls another service on behalf of a user
 
-Backend menukar token user yang datang bersama request (RFC 8693) dengan token untuk service tujuan. Backend tidak memegang refresh token.
+The backend exchanges the user token that came with the request (RFC 8693) for a token for the target service. The backend holds no refresh token.
 
 ```go
 x, err := credentials.NewExchange(credentials.ExchangeConfig{
 	Issuer: "https://auth.example.com", ClientID: clientID, ClientSecret: clientSecret,
 })
 
-// userToken: token dari request, yang sudah diverifikasi backend
+// userToken: the token of the request, which the backend has verified
 req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://inventaris.example.com/items", nil)
 resp, err := x.DoAs(ctx, userToken, credentials.Key{Audience: "inventaris"}, req)
 ```
 
-## Membaca galat
+## Reading errors
 
 ```go
 var grant *credentials.GrantError
 switch {
-case errors.As(err, &grant) && grant.Permanent: // NICE menolak untuk seterusnya: ganti key atau minta user login lagi
-case errors.As(err, &grant):                    // NICE menolak permintaan ini saja (mis. access_denied)
-case credentials.IsTemporary(err):              // NICE tidak terjangkau: coba lagi nanti
-case errors.Is(err, credentials.ErrForeignHost): // request ke host selain service milik client ini
+case errors.As(err, &grant) && grant.Permanent: // NICE refused for good: replace the key or ask the user to sign in again
+case errors.As(err, &grant):                    // NICE refused this request only (e.g. access_denied)
+case credentials.IsTemporary(err):              // NICE cannot be reached: try again later
+case errors.Is(err, credentials.ErrForeignHost): // a request to another host than the service of this client
 }
 ```
 
-## Aturan keamanan
+## Security rules
 
-- **HTTPS.** Alamat NICE dan alamat service harus `https`. `http` diterima untuk loopback (`localhost`, `127.0.0.0/8`, `::1`), jadi stack lokal tidak butuh pengaturan. Untuk jaringan yang TLS-nya berakhir di tempat lain, isi `AllowInsecureHTTP` di `Config`; tidak ada variabel environment untuk itu.
-- **Tanpa redirect ke NICE.** Panggilan SDK ke NICE tidak mengikuti redirect, sehingga rahasia tidak pernah dikirim ke tujuan redirect.
-- **Rahasia tidak tercetak.** `Config`, `ExchangeConfig`, `FeedConfig`, dan `Token` menyamarkan rahasianya saat dicetak atau dicatat ke log. Bentuk JSON `Token` tetap utuh karena itu yang disimpan `Store`: jangan mencatat struct berisi `Token` lewat encoder JSON.
-- **Refresh token.** `FileStore` menyimpannya sebagai berkas yang hanya dapat dibaca pemiliknya, tanpa enkripsi. Untuk produksi, pakai `Store` milik sendiri yang mengenkripsinya.
+- **HTTPS.** The address of NICE and the address of a service must be `https`. `http` is accepted for loopback (`localhost`, `127.0.0.0/8`, `::1`), so a local stack needs no setting. For a network where TLS ends somewhere else, set `AllowInsecureHTTP` in the `Config`; no environment variable does it.
+- **No redirect to NICE.** The calls of the SDK to NICE follow no redirect, so a secret is never sent to where a redirect points.
+- **Secrets are not printed.** `Config`, `ExchangeConfig`, `FeedConfig`, and `Token` hide their secret when printed or logged. The JSON form of a `Token` stays whole because a `Store` keeps it that way: do not log a struct that holds a `Token` through a JSON encoder.
+- **Refresh tokens.** `FileStore` keeps them as files only their owner can read, not encrypted. In production, use a `Store` of your own that encrypts them.
 
-Cara melaporkan celah ada di [SECURITY.md](SECURITY.md).
+How to report a vulnerability is in [SECURITY.md](SECURITY.md).
 
-## Bahasa lain
+## Other languages
 
-Implementasi di bahasa lain mengikuti [docs/token-verification.md](docs/token-verification.md) dan harus memberi jawaban yang sama untuk semua vector di `verify/testdata/vectors.json`.
+An implementation in another language follows [docs/token-verification.md](docs/token-verification.md) and must give the same answers for every vector in `verify/testdata/vectors.json`.
 
-## Mengembangkan
+## Developing
 
 ```bash
 go vet ./...
 go test ./... -count=1 -race
 ```
 
-Tes tidak butuh NICE yang berjalan.
+The tests need no running NICE. `layout_test.go` keeps `verify` and `credentials` from importing each other.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

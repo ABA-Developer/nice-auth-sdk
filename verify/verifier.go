@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	jose "github.com/go-jose/go-jose/v4"
@@ -40,7 +41,9 @@ type Config struct {
 	JWKSRefresh time.Duration
 	// UnknownKeyRefresh is the least time between refreshes caused by an unknown kid; default 1 minute.
 	UnknownKeyRefresh time.Duration
-	// TokenTTL is the lifetime of a NICE token, which bounds how long access changes are remembered; default 30 minutes.
+	// TokenTTL is the lifetime of a NICE token, which bounds how long access changes are remembered; default 30
+	// minutes. It must equal NICE_ACCESS_TOKEN_TTL of NICE: a token that lives longer than TokenTTL plus the skew
+	// is refused with token_lifetime_exceeded, since a change that revoked it would be forgotten before it expires.
 	TokenTTL time.Duration
 	// Tenants decides how an organization becomes known; nil accepts every organization.
 	Tenants TenantResolver
@@ -61,6 +64,8 @@ type Verifier struct {
 	deny *denySet
 	obs  Observer
 	feed *feedState
+	// lifetimeWarned is the unix nanoseconds of the last warning about a token that outlives TokenTTL.
+	lifetimeWarned atomic.Int64
 }
 
 // New builds a Verifier. It reads the copy of the JWKS on disk and then asks NICE;
@@ -150,6 +155,24 @@ func (v *Verifier) Run(ctx context.Context) {
 	}
 }
 
+// warnLifetime logs a token that lives longer than TokenTTL allows, at most once a minute: it is a configuration
+// error that refuses every token, not an attack worth a line per request.
+func (v *Verifier) warnLifetime(now time.Time, life int64, noIAT bool) {
+	last := v.lifetimeWarned.Load()
+	if last != 0 && now.UnixNano()-last < int64(time.Minute) {
+		return
+	}
+	if !v.lifetimeWarned.CompareAndSwap(last, now.UnixNano()) {
+		return
+	}
+	if noIAT {
+		v.cfg.Log.Warn("niceauth: a token without iat was refused; its lifetime cannot be checked against TokenTTL")
+		return
+	}
+	v.cfg.Log.Warn("niceauth: a token lives longer than Config.TokenTTL allows and was refused; set TokenTTL to NICE_ACCESS_TOKEN_TTL of NICE",
+		slog.Duration("token_lifetime", time.Duration(life)*time.Second), slog.Duration("token_ttl", v.cfg.TokenTTL))
+}
+
 func (v *Verifier) reject(e *Error) *Error {
 	v.obs.Rejected(e.Description)
 	return e
@@ -207,15 +230,21 @@ func (v *Verifier) Verify(ctx context.Context, token string) (*Claims, error) {
 	if c.NotBefore != 0 && now.Add(v.cfg.Skew).Before(time.Unix(c.NotBefore, 0)) {
 		return nil, v.reject(invalid(ReasonNotYetValid))
 	}
-	keys := []string{"p:" + c.Subject + "|" + c.OrgID, "o:" + c.OrgID}
+	// The deny-set keeps a change for TokenTTL plus the skew. A token that lives longer would outlive the change
+	// that revoked it, so it is refused: the lifetime of NICE (NICE_ACCESS_TOKEN_TTL) must not exceed TokenTTL.
+	if life := c.ExpiresAt - c.IssuedAt; c.IssuedAt == 0 || life > int64((v.cfg.TokenTTL+v.cfg.Skew)/time.Second) {
+		v.warnLifetime(now, life, c.IssuedAt == 0)
+		return nil, v.reject(invalid(ReasonLifetime))
+	}
+	keys := []denyKey{{key: "p:" + c.Subject + "|" + c.OrgID}, {key: "o:" + c.OrgID}}
 	if c.ProjectID != "" {
-		keys = append(keys, "j:"+c.ProjectID)
+		keys = append(keys, denyKey{key: "j:" + c.ProjectID})
 	}
 	if c.ActAs != "" {
 		// The right of an operator is decided in the organization nice_act_as names, so a change there ends the token.
-		keys = append(keys, "p:"+c.Subject+"|"+c.ActAs)
+		keys = append(keys, denyKey{key: "p:" + c.Subject + "|" + c.ActAs, actAs: true})
 	}
-	if v.deny.stale(c.IssuedAt, keys...) {
+	if v.deny.stale(tokenVersion{iat: c.IssuedAt, org: c.OrgID, pv: c.PolicyVersion, hasPV: c.hasPV}, keys...) {
 		return nil, v.reject(invalid(ReasonStale))
 	}
 	return &c, nil

@@ -267,12 +267,12 @@ func TestOnlyTheTouchedThingsAreRefused(t *testing.T) {
 func TestTheDenySetForgetsWhatTokensHaveOutlived(t *testing.T) {
 	d := newDenySet(31 * time.Minute)
 	base := time.Unix(vNow, 0)
-	d.mark("p:old", base.Add(-time.Hour), base)
-	d.mark("p:recent", base.Add(-time.Minute), base)
+	d.mark("p:old", vOrg, 0, base.Add(-time.Hour), base)
+	d.mark("p:recent", vOrg, 0, base.Add(-time.Minute), base)
 	if d.size() != 1 {
 		t.Fatalf("entries older than the token lifetime plus skew are dropped: %d", d.size())
 	}
-	if !d.stale(base.Add(-10*time.Minute).Unix(), "p:recent") || d.stale(base.Unix(), "p:recent") {
+	if !d.stale(tokenVersion{iat: base.Add(-10 * time.Minute).Unix()}, denyKey{key: "p:recent"}) || d.stale(tokenVersion{iat: base.Unix()}, denyKey{key: "p:recent"}) {
 		t.Fatal("a recent entry refuses older tokens only")
 	}
 }

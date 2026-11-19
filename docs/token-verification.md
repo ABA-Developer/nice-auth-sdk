@@ -18,7 +18,7 @@ An RS256 JWT from NICE. One token stands for one principal, one org, one project
 | `nice_principal_type` | `user` or `service_account` |
 | `prj` | the project of this token |
 | `perms` | the permissions of this service that the principal holds in that project |
-| `pv` | the policy version of the org when the token was issued |
+| `pv` | the policy version of the org when the token was issued; it orders the token against the access changes of that org (step 7) |
 | `act` | only on a token from a token exchange: `{"sub": "<client_id>"}`, the service backend acting on behalf of `sub` |
 | `nice_act_as` | only on an act-as token: `org_...` of the platform organization, where the right of a platform operator of this service was decided; `sub` is not a member of `nice_org_id` |
 
@@ -40,7 +40,8 @@ The order is fixed: cheap checks first, network calls last. The answer and its r
 | 4 | `iss` matches exactly | `401`, `wrong_issuer` |
 | 5 | `aud` holds **exactly one** value, equal to the slug of the service; a multi-audience token is refused even when this slug is in it | `401`, `wrong_audience` |
 | 6 | `exp` has not passed by more than the skew; `nbf` is not more than the skew in the future. The skew is at most **60 seconds** | `401`, `expired` or `not_yet_valid` |
-| 7 | Deny-set: `iat` is not older than the `not_before` of the principal (`sub` in that org), the org, or the project of the token; for a token with `nice_act_as`, also the principal `sub` in the org `nice_act_as` names | `401`, `token_stale` |
+| 6a | `iat` is present and `exp - iat` is at most the TTL plus the skew. A token that lives longer would outlive the deny-set entry of a change that revoked it; the TTL of the service must equal the TTL of NICE (`NICE_ACCESS_TOKEN_TTL`) | `401`, `token_lifetime_exceeded` |
+| 7 | Deny-set, for each key of the token (the principal `sub` in its org, the org, the project; for a token with `nice_act_as`, also the principal `sub` in the org `nice_act_as` names). The token is stale when **any** of these holds: `iat` is older than the second of the latest change of the key; the token has `pv`, the change was recorded in the org of the token, and `pv` is lower than the highest `policy_version` of the key; for the key in the `nice_act_as` org, `iat` is not newer than the second of the change | `401`, `token_stale` |
 | 8 | The org is accepted by the tenant policy of the service (see below) | `403`, `org_rejected` |
 | 9 | The operation needs a permission: it must be in `perms` | `403`, `permission_denied` |
 | 10 | When the request names a project, it must equal `prj` | `403`, `project_mismatch` |
@@ -63,7 +64,8 @@ A token carries its permissions for up to 30 minutes, so an access change needs 
 
 - **At start**, replay from `now - (TTL + skew)`, so that a token revoked while the service was down is not accepted again.
 - Then keep reading with `after_seq` and `wait_seconds=25`. On failure, try again with a backoff (1 second up to 30 seconds).
-- Each change sets a `not_before` on **one** key: the principal in that org when there is a `principal_id`, otherwise the project when there is a `project_id`, otherwise the org. A token whose `iat` is older than `not_before` is refused with `token_stale` (the resolution is one second; a token issued in the same second is not caught).
+- Each change sets an entry on **one** key: the principal in that org when there is a `principal_id`, otherwise the project when there is a `project_id`, otherwise the org. The entry keeps the second of the latest change (`occurred_at`) and the highest `policy_version` with the org it was recorded in.
+- `iat` has a resolution of one second, so a token issued in the same second as a change cannot be ordered by time. `policy_version` orders them: NICE raises the policy version of an org in the transaction that records each change, and puts the version it read before the permissions into `pv`. A token whose `pv` is lower than the version of the change was issued before it and is refused; one whose `pv` is equal or higher was issued after it. A token without `pv`, or a feed without `policy_version`, falls back to time alone. The act-as key compares time only (its changes are in another org than `pv`), and refuses a token of the same second, since NICE issues no act-as token once the operator role is gone.
 - Keep an entry only for the TTL plus the skew; older tokens have expired by themselves.
 - `catalog_changed` sets a `not_before` like any other entry: the catalog of a service changed (for example an operation was archived or a permission retired), and every affected principal gets an entry of its own, so its old token is refused with `token_stale` and the client gets a new one with the current `perms`.
 - The right of a platform operator (the `<slug>.operator` role) changes in the platform organization: the binding is removed, the user leaves the platform organization, or the role changes. The entry is that principal in the platform organization, and an act-as token issued earlier is refused because step 7 also checks the principal key in the `nice_act_as` org.
@@ -89,11 +91,11 @@ A tenant is a NICE org:
 
 ```json
 {
-  "version": 1, "issuer": "...", "service": "navi", "jwks": { "keys": [] },
+  "version": 2, "issuer": "...", "service": "navi", "jwks": { "keys": [] },
   "vectors": [{
     "name": "stale_principal", "description": "...", "token": "<jwt>", "now": 1793329000,
     "request": { "permission": "navi.orders.read", "project": "prj_...", "sensitive": false, "client_tenant": "org_..." },
-    "changes": [{ "principal_id": "usr_...", "organization_id": "org_...", "project_id": "", "kind": "principal_disabled", "occurred_at": 1792000000 }],
+    "changes": [{ "principal_id": "usr_...", "organization_id": "org_...", "project_id": "", "kind": "principal_disabled", "occurred_at": 1792000000, "policy_version": 13 }],
     "tenant": { "policy": "allow_all | allow_list | provision", "orgs": ["org_..."] },
     "check": "allow | deny | down",
     "expect": { "status": 401, "error": "invalid_token", "description": "token_stale", "tenant": "org_...", "actor": "naia-backend", "act_as": "org_..." }
@@ -101,6 +103,6 @@ A tenant is a NICE org:
 }
 ```
 
-A runner builds a verifier with `iss`, `service`, the JWKS, a clock fixed at `now`, a skew of 60 seconds, and a TTL of 30 minutes; applies `changes` as if they came from the feed (`occurred_at` in Unix seconds); sends a request with `Authorization: Bearer <token>`, plus the project and client tenant headers when there are any; and compares the status, `error`, `error_description`, and (for a 200) the tenant, the actor (`act.sub`, empty when there is none), and the `nice_act_as` (empty when there is none) that the handler sees. The vectors `valid_act_as_token` and `stale_act_as_operator` test an act-as token that is valid and one that is stale because of a change of the principal in the `nice_act_as` org. A new implementation must pass **every** vector before it is integrated.
+A runner builds a verifier with `iss`, `service`, the JWKS, a clock fixed at `now`, a skew of 60 seconds, and a TTL of 30 minutes; applies `changes` as if they came from the feed (`occurred_at` in Unix seconds, `policy_version` when present); sends a request with `Authorization: Bearer <token>`, plus the project and client tenant headers when there are any; and compares the status, `error`, `error_description`, and (for a 200) the tenant, the actor (`act.sub`, empty when there is none), and the `nice_act_as` (empty when there is none) that the handler sees. The vectors `valid_act_as_token` and `stale_act_as_operator` test an act-as token that is valid and one that is stale because of a change of the principal in the `nice_act_as` org. Version 2 adds the lifetime check (`lifetime_exceeds_ttl`, `missing_iat`) and the policy version (`stale_same_second_by_policy_version`, `issued_after_change_same_second`, `policy_version_other_org`, `stale_act_as_same_second`, `stale_without_pv`, `same_second_without_pv`). A new implementation must pass **every** vector before it is integrated.
 
 To add a vector: `go test ./verify -run TestWriteVectors -update-vectors`. The vectors already in the file are kept as they are, and a new vector is signed with a new key added to the JWKS (`vector-key-2`, and so on), so other implementations only need to pull the addition. Delete the file first to sign every vector again with one key. Commit the result after reviewing the diff.

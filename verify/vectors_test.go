@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -53,6 +54,8 @@ type vectorChange struct {
 	ProjectID      string `json:"project_id,omitempty"`
 	Kind           string `json:"kind"`
 	OccurredAt     int64  `json:"occurred_at"`
+	// PolicyVersion is policy_version of the change in its organization; 0 when the feed gives none.
+	PolicyVersion int64 `json:"policy_version,omitempty"`
 }
 
 type vectorTenant struct {
@@ -107,8 +110,12 @@ func (v vector) run(t *testing.T, f vectorFile) (int, map[string]string) {
 	}
 	ver.feed = &feedState{}
 	for _, c := range v.Changes {
+		pv := ""
+		if c.PolicyVersion != 0 {
+			pv = strconv.FormatInt(c.PolicyVersion, 10)
+		}
 		ver.apply(feedPage{Changes: []feedChange{{OrganizationID: c.OrganizationID, PrincipalID: c.PrincipalID, ProjectID: c.ProjectID,
-			Kind: c.Kind, OccurredAt: time.Unix(c.OccurredAt, 0).UTC().Format(time.RFC3339)}}})
+			Kind: c.Kind, PolicyVersion: pv, OccurredAt: time.Unix(c.OccurredAt, 0).UTC().Format(time.RFC3339)}}})
 	}
 	var opts []RequireOption
 	if v.Request.Project != "" {
@@ -149,7 +156,7 @@ func TestVectors(t *testing.T) {
 	if err := json.Unmarshal(raw, &f); err != nil {
 		t.Fatal(err)
 	}
-	if f.Version != 1 || len(f.Vectors) < 32 {
+	if f.Version != 2 || len(f.Vectors) < 42 {
 		t.Fatalf("vector file: version %d, %d vectors", f.Version, len(f.Vectors))
 	}
 	for _, v := range f.Vectors {

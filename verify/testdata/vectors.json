@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "issuer": "https://auth.example.test",
   "service": "navi",
   "jwks": {
@@ -26,6 +26,14 @@
         "kid": "vector-key-3",
         "alg": "RS256",
         "n": "4ZyW40gvAj6jXfhYWp0Gzf_xgy6UjaSqSYf9rv_l4DZYBG1I0rdH5IVsiXOh1S7JbXUxhOUazcCYXxy99zIkQQahGYnULrFjvRvy5Yi3r9Sk16HzOrU1XwjvOOglRXHOK7DvyWx-kPTfhEFfFx0BL3sBl20cIG07WklGkbC4jek9lxVPZKIft7dLg01y3Jk2u4EIJlbOSOG4-3iwGhXIZDtRM4T5ndeCcuiDJjopAb2RadEZwXONGbU_lZyEzBSVWUzsTv7hfR9N-GNmoHaFoElfLM4H9fv9lkumfix51Hx7-HYUAnutG2kwW3VWhydikeUZGRtY13q2j0JJClLmoQ",
+        "e": "AQAB"
+      },
+      {
+        "use": "sig",
+        "kty": "RSA",
+        "kid": "vector-key-4",
+        "alg": "RS256",
+        "n": "4bA56R7LcS4AjXBVQ465NFu-pLba_5MfqceASPsRBqy5nhzoVwoBo0KLKPst5XlciS7zxcuE8izutDvywZ3gmIFP3oJG3tz2up9d-LabHEsFXdm_oc_SmV-YLSGrvgj-4b2dUxFg-bo_E3XjiqtwaLESLQPDU95EYeQDzFStrxf72tZy5Lc3361PIQXFhqSmmbsgf398LqK_idlyIHhQTXIosoPs78aOTllqpbdg4UOY_a7V4qXe9xCUUbN5tFxbISMohlOEK2AsuZZ9eV7WQbEDTyl4NLe0sbAcu3gHAyUWXZR6g0quWsifynBwFGaktkUQLwQV8_ygtc_9AaKI-Q",
         "e": "AQAB"
       }
     ]
@@ -682,6 +690,192 @@
           "organization_id": "org_00000000-0000-7000-8000-000000000001",
           "kind": "binding_deleted",
           "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "lifetime_exceeds_ttl",
+      "description": "the token lives longer than the TTL plus the skew: a change that revoked it would be forgotten before it expires",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMjAwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.3I_JBvz_ICDpQGFYKkhI4jDrLuugE8FAexhbsj733PZVE6nA_26V1ptoYyTFb75kh4W46EvDJutAh7I7XvKuNo5-FkCAgGK6Z2t001edZDPQg6p3s0VttRBO3ETO-Ikun030Xv_8_1UbVSntDVOuWW-uP2PelO7-_Hrp-jcjL4NDCJuLl-0mMJZoNERqUpP8-3M86Y81Fj4LdaaFLBybqoVSQ4DsCH1P2LkymOKopk8COdE_BHndesXyIrI6gXdCTKGk0PAWTWNVMXDnYFWrHBgaTBpD7EWF3H2Sc8KFk-n2MM6MFUKmnMrU53v2g42kuwNjdPhwdMwwhLIDSlnq0g",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_lifetime_exceeded"
+      }
+    },
+    {
+      "name": "missing_iat",
+      "description": "a token without iat: its lifetime cannot be checked",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUudGVzdCIsImp0aSI6IjAxOTJmM2E0LTdiMWMtN2QyZS05YTEwLTNjNWY2ZTdkOGE5MCIsIm5pY2Vfb3JnX2lkIjoib3JnXzAxYTE3YjQ5LTU2YmMtNzYzMi1hMzJmLWQ0NzMxMWMwNjhjMSIsIm5pY2VfcHJpbmNpcGFsX3R5cGUiOiJ1c2VyIiwicGVybXMiOlsibmF2aS5vcmRlcnMucmVhZCJdLCJwcmoiOiJwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1IiwicHYiOjEyLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.IMEac5w_Z5YbKOHHc4zLb86OxwNUWkK6uUyDbG4Gy2CD-Nr2wE07_lGOA2SYnWkzw83AuaoB87mkF-7ANPAiNLZpsdZgI5Yf6EKJKN-CIAdQ11_QpAkBshLksxgSbFGZ1aunKIavphNex8VLmmWu3mFSHuT2y8m83FWQiSB4hHnkrU9Gl4_YAleQt2uOiFkVnOTs7LImGsWiwDvQCamyMSNiui3qm-DXkxf6hXxr_sSJ1_ChNfqFjJtB3qu1_Ram-CdFCrzxZBgLO9lUoPVHJ8ZkXnsMqVZI69vNEybR96jrOD_CTMMVnXwgDEn_hRcsqMXuqjqSIIBDX5UrI8nDMg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_lifetime_exceeded"
+      }
+    },
+    {
+      "name": "stale_same_second_by_policy_version",
+      "description": "the change came in the second the token was issued, with a higher policy version than pv",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.3i-nUdqY9dOAsmRvgJo0Ly7E6f11IaZk9IALJEHnAlbjs9XFp4TExOfDliYWUnZr4egctoL1-6pQdaP2ZhwH3CiOAxmdyYTZvHkb4h_5c5ZSCEBh0eOSK8bmzZY0EaTVVaxn4rHOP3v-u-Oe_M4VsPgcmZG8qR6F1M0kzda2dsGbVaoUoNpoxd99KRLUav_ruCTCDHi5APLRgJdgufC5g38FyvTmek1Bu_BOpOVtuWcG03nf4ul3xlgkYTgRE11brlJvMEFgvztOAmoQd9gm8Gzgm-9mmRmW6kHBANB0mpiGQuiupr2k6_Pd2ZxhvMyh4xG_L_v8ceNMh4eLuMPifw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328400,
+          "policy_version": 13
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "issued_after_change_same_second",
+      "description": "the token was issued after the change, in the same second: pv equals the version of the change",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTMsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.TuAcly70wULMRT2Hh53hZlNY5ZDP7uaCq2iPsQYYwBiplw9ypfsg86cp4JOylG84Ts6yOz29SBs03SlGR8HQQfkBGrunGA9gwHmqifEfWY6N6ejNLweGq9AAdQa3me7ZhtwnNOKUEewBfSGo9Iie_Z9SipzHBWM5t-kz4MzgFxUmtu7SFCKlesNffd6pKDPN-0KQ39XOB6PQiTW9LQuVgioaqAG_nwJPt1djGZB8jc99eSBD3xDP2-5b8kbn1S1b8MOVMBxUzQRod1znxITRVZnU8A0UuvEmydtxAtyrSeNiD1xZfLC0oYXe5BMg3YXz0ng_2OgYmWeMZth7snj8zA",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328400,
+          "policy_version": 13
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "policy_version_other_org",
+      "description": "a higher policy version of another organization does not touch the token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.3i-nUdqY9dOAsmRvgJo0Ly7E6f11IaZk9IALJEHnAlbjs9XFp4TExOfDliYWUnZr4egctoL1-6pQdaP2ZhwH3CiOAxmdyYTZvHkb4h_5c5ZSCEBh0eOSK8bmzZY0EaTVVaxn4rHOP3v-u-Oe_M4VsPgcmZG8qR6F1M0kzda2dsGbVaoUoNpoxd99KRLUav_ruCTCDHi5APLRgJdgufC5g38FyvTmek1Bu_BOpOVtuWcG03nf4ul3xlgkYTgRE11brlJvMEFgvztOAmoQd9gm8Gzgm-9mmRmW6kHBANB0mpiGQuiupr2k6_Pd2ZxhvMyh4xG_L_v8ceNMh4eLuMPifw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "organization_id": "org_01a17b49-9999-7632-a32f-d47311c068c1",
+          "kind": "role_changed",
+          "occurred_at": 1793328400,
+          "policy_version": 50
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "stale_act_as_same_second",
+      "description": "the operator role was removed in the platform organization in the second the token act-as was issued",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9hY3RfYXMiOiJvcmdfMDAwMDAwMDAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.HX_NtxowoBzIIl3AcUdnKnjh9V_HC2ghLlWE10iGPVClPASkLiyGO0B6euIXnoBA6ZsrVsxE3ChsDBV_1XkOTHLvgXY7KIoQLBQID2LQsjKIzZ6AnwnF67fkrONY2UvOmSAkCORA3edCgdRjiBWuQH5TZyFLi6pMJu-aIMbCh_bG3MzrsYhHT_ZZP_5nFhvzieib2Pj33yba65xhr2qqqP5csKILblAx8V6Gtc3jFnJlDkv-YnCbCDC8k-HLk-Bv-0axiqheeI9qvRAelegq_rr3_rWLQyJVg5tKZB3ZdtxzOw29vPJjrSX3i_WpeXdLY9FIVVvqLU1thY0Xv1FQig",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328400,
+          "policy_version": 40
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "stale_without_pv",
+      "description": "a token without pv is judged by the second it was issued",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.eWnSBla8NVENvCcMvcc3K4LSxffSttspUpH2WC0IEwmoc99dfi4vEiutkmAOF_6oJkTvKZPRhUPslEuh0IT93YWTE-8svCDhQk5g9pqY-TQ6r7eywVS7TJpxiGnWVYChI7hkdGLfm-76l5HJI8xthvauZcSqMhu0JxrhLJjTpwOqgjPxLccmlwMxGOUJHD_3CazgUThN2D6lJb__cdBXpDQliWlWEEU9KcfxFwmZRdEHqTPLWwulam6I2DiSsgMVOwnfiCRM5FBH-2n9apEBotjk9ovyE2z_M1-q5A3fiGUFqUZ_jexFFgEuoWoyS50XCWMC-AAnrFdwHmYDnNDFxw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328401,
+          "policy_version": 13
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "same_second_without_pv",
+      "description": "a token without pv of the second of the change is not refused: only pv can order them",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.eWnSBla8NVENvCcMvcc3K4LSxffSttspUpH2WC0IEwmoc99dfi4vEiutkmAOF_6oJkTvKZPRhUPslEuh0IT93YWTE-8svCDhQk5g9pqY-TQ6r7eywVS7TJpxiGnWVYChI7hkdGLfm-76l5HJI8xthvauZcSqMhu0JxrhLJjTpwOqgjPxLccmlwMxGOUJHD_3CazgUThN2D6lJb__cdBXpDQliWlWEEU9KcfxFwmZRdEHqTPLWwulam6I2DiSsgMVOwnfiCRM5FBH-2n9apEBotjk9ovyE2z_M1-q5A3fiGUFqUZ_jexFFgEuoWoyS50XCWMC-AAnrFdwHmYDnNDFxw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328400,
+          "policy_version": 13
         }
       ],
       "tenant": {

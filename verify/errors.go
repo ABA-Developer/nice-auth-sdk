@@ -38,6 +38,7 @@ const (
 	ReasonAudience    = "wrong_audience"
 	ReasonExpired     = "expired"
 	ReasonNotYetValid = "not_yet_valid"
+	ReasonLifetime    = "token_lifetime_exceeded"
 	ReasonStale       = "token_stale"
 	ReasonPermission  = "permission_denied"
 	ReasonProject     = "project_mismatch"

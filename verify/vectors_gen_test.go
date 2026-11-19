@@ -170,11 +170,34 @@ func TestWriteVectors(t *testing.T) {
 		{Name: "change_in_platform_without_act_as", Description: "a change of the principal in the platform organization does not touch a token without nice_act_as",
 			Token: valid, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vPlatform, Kind: "binding_deleted", OccurredAt: vNow - 120}},
 			Request: read, Tenant: allowAll, Expect: ok200},
+		{Name: "lifetime_exceeds_ttl", Description: "the token lives longer than the TTL plus the skew: a change that revoked it would be forgotten before it expires",
+			Token: good.sign(t, claims(map[string]any{"exp": vNow - 600 + 3600})), Now: vNow, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_lifetime_exceeded")},
+		{Name: "missing_iat", Description: "a token without iat: its lifetime cannot be checked", Token: good.sign(t, claims(map[string]any{"iat": nil})), Now: vNow, Request: read,
+			Tenant: allowAll, Expect: deny(401, "invalid_token", "token_lifetime_exceeded")},
+		{Name: "stale_same_second_by_policy_version", Description: "the change came in the second the token was issued, with a higher policy version than pv",
+			Token: valid, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}},
+			Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
+		{Name: "issued_after_change_same_second", Description: "the token was issued after the change, in the same second: pv equals the version of the change",
+			Token: good.sign(t, claims(map[string]any{"pv": 13})), Now: vNow,
+			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}}, Request: read, Tenant: allowAll, Expect: ok200},
+		{Name: "policy_version_other_org", Description: "a higher policy version of another organization does not touch the token",
+			Token: valid, Now: vNow, Changes: []vectorChange{{OrganizationID: vOrg2, Kind: "role_changed", OccurredAt: vNow - 600, PolicyVersion: 50}},
+			Request: read, Tenant: allowAll, Expect: ok200},
+		{Name: "stale_act_as_same_second", Description: "the operator role was removed in the platform organization in the second the token act-as was issued",
+			Token: actAs, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vPlatform, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 40}},
+			Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
+		{Name: "stale_without_pv", Description: "a token without pv is judged by the second it was issued",
+			Token: good.sign(t, claims(map[string]any{"pv": nil})), Now: vNow,
+			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 599, PolicyVersion: 13}}, Request: read, Tenant: allowAll,
+			Expect: deny(401, "invalid_token", "token_stale")},
+		{Name: "same_second_without_pv", Description: "a token without pv of the second of the change is not refused: only pv can order them",
+			Token: good.sign(t, claims(map[string]any{"pv": nil})), Now: vNow,
+			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}}, Request: read, Tenant: allowAll, Expect: ok200},
 	}
 	if len(kept.Vectors) > 0 {
 		vs = keepVectors(kept.Vectors, vs)
 	}
-	out := vectorFile{Version: 1, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs}
+	out := vectorFile{Version: 2, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		t.Fatal(err)

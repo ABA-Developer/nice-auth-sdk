@@ -75,6 +75,7 @@ type feedChange struct {
 	Kind           string `json:"kind"`
 	PrincipalID    string `json:"principal_id"`
 	ProjectID      string `json:"project_id"`
+	PolicyVersion  string `json:"policy_version"`
 	OccurredAt     string `json:"occurred_at"`
 }
 
@@ -211,13 +212,15 @@ func (v *Verifier) apply(p feedPage) {
 		if err != nil {
 			at = now
 		}
+		// A version that does not parse (an older NICE sends none) leaves only the time to compare.
+		pv, _ := strconv.ParseInt(c.PolicyVersion, 10, 64)
 		switch {
 		case c.PrincipalID != "":
-			v.deny.mark("p:"+c.PrincipalID+"|"+c.OrganizationID, at, now)
+			v.deny.mark("p:"+c.PrincipalID+"|"+c.OrganizationID, c.OrganizationID, pv, at, now)
 		case c.ProjectID != "":
-			v.deny.mark("j:"+c.ProjectID, at, now)
+			v.deny.mark("j:"+c.ProjectID, c.OrganizationID, pv, at, now)
 		default:
-			v.deny.mark("o:"+c.OrganizationID, at, now)
+			v.deny.mark("o:"+c.OrganizationID, c.OrganizationID, pv, at, now)
 		}
 	}
 	if seq, err := strconv.ParseInt(p.Seq, 10, 64); err == nil && seq > v.feed.seq.Load() {

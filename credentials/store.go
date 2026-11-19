@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -114,6 +113,12 @@ func (m *MemoryStore) Lock(_ context.Context, subject string) (func(), error) {
 // is a file created exclusively; one left by a process that died is broken after
 // StaleLock. Refresh tokens are secrets: keep the directory on an encrypted disk
 // or use a Store of your own that encrypts them.
+//
+// Every subject has files of its own, whatever its characters. A subject made of
+// ASCII letters, digits, '_' and '-' keeps the file names of v0.1.0; any other
+// subject is named differently since v0.2.0, so its user connects again once
+// after the upgrade. Files of the old form for such subjects (names with '~') are
+// never read again and may be deleted.
 type FileStore struct {
 	dir string
 	// StaleLock is how long a lock may be held before it is taken over; default 30 seconds.
@@ -134,14 +139,21 @@ func (f *FileStore) path(kind, name string) string {
 	return filepath.Join(f.dir, kind+"-"+safe(name))
 }
 
-// safe turns a subject or key into a file name that cannot leave the directory.
+// safe turns a subject or key into a file name that cannot leave the directory. Each byte outside [A-Za-z0-9_-]
+// becomes '.' and two lowercase hex digits, so two different strings never get the same name. v0.1.0 escaped with
+// '~' and a hex number of any length, which named "a.b" and "a\u02eb" alike; '.' never appeared in those names, so
+// a name of this form never meets a file another subject wrote then.
 func safe(s string) string {
+	const hex = "0123456789abcdef"
 	var b strings.Builder
-	for _, r := range s {
-		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '-' {
-			b.WriteRune(r)
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-' {
+			b.WriteByte(c)
 		} else {
-			fmt.Fprintf(&b, "~%x", r)
+			b.WriteByte('.')
+			b.WriteByte(hex[c>>4])
+			b.WriteByte(hex[c&0xf])
 		}
 	}
 	return b.String()
@@ -176,9 +188,14 @@ func (f *FileStore) SaveRefreshToken(_ context.Context, subject, token string) e
 
 func (f *FileStore) DeleteSubject(_ context.Context, subject string) error {
 	_ = os.Remove(f.path("refresh", subject))
-	matches, _ := filepath.Glob(f.path("token", subject) + "+*")
-	for _, m := range matches {
-		_ = os.Remove(m)
+	// The prefix ends with '+', which safe never writes, so it matches no other subject. ReadDir rather than Glob, so
+	// a directory whose name holds a glob character still works.
+	prefix := filepath.Base(f.path("token", subject)) + "+"
+	entries, _ := os.ReadDir(f.dir)
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), prefix) {
+			_ = os.Remove(filepath.Join(f.dir, e.Name()))
+		}
 	}
 	return nil
 }

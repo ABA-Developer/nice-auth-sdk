@@ -15,7 +15,10 @@ import (
 // Key names one token: who it is for, the service and the project.
 type Key struct {
 	// Subject identifies the principal on the caller's side: the ID of a Service Account, or any stable
-	// ID of the signed-in user in the application. It is the key of the refresh token in the Store.
+	// ID of the signed-in user in the application. It is the key of the refresh token in the Store. Prefer an
+	// ID the application assigns (letters, digits, '_' and '-') over a value the user picks, such as an email:
+	// a FileStore of v0.1.0 could name two such values alike, and since v0.2.0 a subject with other characters
+	// is stored under a new name, so its user connects again once after the upgrade.
 	Subject string
 	// Audience is the slug of the service; empty asks for the platform token that opens the NICE API.
 	Audience string

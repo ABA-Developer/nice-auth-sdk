@@ -28,9 +28,11 @@ type Claims struct {
 	// ActAs is nice_act_as: the platform organization, where the right of a platform operator of this service was
 	// decided, on a token of an organization the operator is not a member of. Empty on any other token.
 	ActAs string `json:"nice_act_as"`
+	// hasPV is whether the token carries pv; a token without it is checked by the time it was issued only.
+	hasPV bool
 }
 
-// UnmarshalJSON reads the claims and lifts act.sub into Actor.
+// UnmarshalJSON reads the claims, lifts act.sub into Actor, and notes whether pv is present.
 func (c *Claims) UnmarshalJSON(b []byte) error {
 	type plain Claims
 	var raw struct {
@@ -38,6 +40,8 @@ func (c *Claims) UnmarshalJSON(b []byte) error {
 		Act *struct {
 			Subject string `json:"sub"`
 		} `json:"act"`
+		// PV shadows plain.PolicyVersion, so a missing pv can be told from pv 0.
+		PV *int64 `json:"pv"`
 	}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -45,6 +49,9 @@ func (c *Claims) UnmarshalJSON(b []byte) error {
 	*c = Claims(raw.plain)
 	if raw.Act != nil {
 		c.Actor = raw.Act.Subject
+	}
+	if raw.PV != nil {
+		c.PolicyVersion, c.hasPV = *raw.PV, true
 	}
 	return nil
 }

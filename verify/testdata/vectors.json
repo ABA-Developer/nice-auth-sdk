@@ -1,0 +1,696 @@
+{
+  "version": 1,
+  "issuer": "https://auth.example.test",
+  "service": "navi",
+  "jwks": {
+    "keys": [
+      {
+        "use": "sig",
+        "kty": "RSA",
+        "kid": "vector-key-1",
+        "alg": "RS256",
+        "n": "rbHsGuMX2XMNS985cfKxHeWqQIZ6Bxr_XQVrtgSMnNHqQWsHIWMUkq-Td5OjYaJuiYoIAPwCLgZbXcMR7vuIwRD5V5kHL9E84NftdDT6qaPHdeayTueWnUzLrqJq2zKrkSbQSopMaWlxsrdS2J_lgDaLLxeC-orAu8NkfPrB5mVCvQX-_Bt1LHaogOyq5TyQaDFTaZypNcDrV3d5E6TrUCSC2A90xN1ExPGxBQl_Xpj_4ykAuEzYhhT2CUr_6qrCk3n2s44MPrrfgwKlXgssArmDad4Iy78imeuK44OY0iDcFavV4uP8ufGKNIwzypdnHXtqqcwbHvjPXlS1plIfYQ",
+        "e": "AQAB"
+      },
+      {
+        "use": "sig",
+        "kty": "RSA",
+        "kid": "vector-key-2",
+        "alg": "RS256",
+        "n": "2oAkPviHEs1nP5x88C99GKWA_TC2k9Yw80FjYVxMQHI0II8QBDsmq97HCvRFvKwhB-rsjiOifkzzGA7SJFTBXXBhjghDCJvB_zj9MVUGI65WVm2XSXl7JFzEtSfEdK0sJIAQqWpvBhy1hJ_T6fMHng_bMCr2FYo5k3qPDTf4GDgQGtHUtCZLFipg5TVh9Bo9vjqWNpuXuP8-BH479Fic66FfKMz41U-sNffda1iOKTP41YIjBg8uZe7B8mtxnZra6rhV_U2BZDVZuuGsOZUk5APvIdsBh3Qo2MKS5xrttaEcMl2jUP32_d7AloIcHZkut3tyZqm7gZnzmq8zXQ7LQQ",
+        "e": "AQAB"
+      },
+      {
+        "use": "sig",
+        "kty": "RSA",
+        "kid": "vector-key-3",
+        "alg": "RS256",
+        "n": "4ZyW40gvAj6jXfhYWp0Gzf_xgy6UjaSqSYf9rv_l4DZYBG1I0rdH5IVsiXOh1S7JbXUxhOUazcCYXxy99zIkQQahGYnULrFjvRvy5Yi3r9Sk16HzOrU1XwjvOOglRXHOK7DvyWx-kPTfhEFfFx0BL3sBl20cIG07WklGkbC4jek9lxVPZKIft7dLg01y3Jk2u4EIJlbOSOG4-3iwGhXIZDtRM4T5ndeCcuiDJjopAb2RadEZwXONGbU_lZyEzBSVWUzsTv7hfR9N-GNmoHaFoElfLM4H9fv9lkumfix51Hx7-HYUAnutG2kwW3VWhydikeUZGRtY13q2j0JJClLmoQ",
+        "e": "AQAB"
+      }
+    ]
+  },
+  "vectors": [
+    {
+      "name": "valid_user_token",
+      "description": "a token for this service, project and permission",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "valid_service_account_token",
+      "description": "a Service Account token is verified like a user token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InNlcnZpY2VfYWNjb3VudCIsInBlcm1zIjpbIm5hdmkub3JkZXJzLnJlYWQiXSwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJzYV8wMWExN2I0ZS0yMjIyLTcwMDAtODAwMC0wMDAwMDAwMDAwMDIifQ.qADQf54v_U1N1R6b6DqI5euy0JAyIBHGPVCVGKjgJHgCXTn5Goigy2RZw9AH6uAm6KAVtgU1_ug0J9Anxh3JTI_zluGYE8tyPLnVPAUJsw_jWV5eECY3ZIO05Z0JM1bDtkYEexf8NeUyaBX3jEe-XMff0mkPE35KSi-iBBp-iaQ43uCj4XvlGCnPwg4ADqQH3zW0vod444IQ0NbHY9XHxfXLRgJpj8rju8k55qFwsG8WaUELCT1X2tT6gFR3T2XJTJkAhhX175Jvpt3tnxir550IVwj83uExXuzF9-ae-UXC18Hsy-xQTOhXGiqi4zP9sWHs0Ckl8O-1lfANYrYVTA",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "expired",
+      "description": "exp is past by more than the skew",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMyODkzOSwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.oF9ktvL_KPBDU0DlRq-tKZoJeAUj1ODFZRPMtSx9HfojlGZIWCHawv4XhO8wJdApvu0Ad8dht_0jYU6XQx7FMB82igpa7ALeWnZCpQxarXPLzlO7f5QTcpoU2nNBOM8fWj8Mno7d4i9K8-xqPHHFTIc8wBLI3mFjwUc_IpJHw8jcIzyFxMEQQH2fgGtBADd_6-wf2Op6nfTfnNOl4I1-HDR3DcfTMVye4kLyRm2RdO_JbFl0xcrxWuPl4InAoa1yhBSxBMKd9FGu4tWXzRz8D4KeS_BKYco1sUCe5KQGa9uWGF4hYwtFUtN6CbyOT9JccdMd4tj11t3UOM5X-se2lg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "expired"
+      }
+    },
+    {
+      "name": "within_skew",
+      "description": "exp is past by less than the skew of 60 seconds",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMyODk3MCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.aHMnALc-RYxUoX61CfZ6OXvb48Y5ZdXqgEVsoc_GYrxebbygqIZfuXA8oFs6nu35oL2EGb0AjlFdz_EJoc6aSUNRlSa6eXvjpnUQwe2GK7nO4Gk-BvHVT1dcmrJAc4LXkEcG_gq4orGntnycq4LpfFuY0lYksnw6dX3sA3ifzj_ZnwFwozpw8BPiPd3PgDEkSfHmHUfsv0DZzUgYZIaJk70bGNkvAWA9wxqcC9rmyS6Sy2qHaWWcaITq7glV3GGnkDqED4Y4STafBq-kyEkzG_zYecgrk5TjvZBgrhKawE_xazGKLyZtm4T_AIThAz0gytFPGENZdKOY6lNHrwJ1FQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "not_yet_valid",
+      "description": "nbf lies in the future by more than the skew",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmJmIjoxNzkzMzI5MzAwLCJuaWNlX29yZ19pZCI6Im9yZ18wMWExN2I0OS01NmJjLTc2MzItYTMyZi1kNDczMTFjMDY4YzEiLCJuaWNlX3ByaW5jaXBhbF90eXBlIjoidXNlciIsInBlcm1zIjpbIm5hdmkub3JkZXJzLnJlYWQiXSwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.LobmeDFQk2YBcqHTDUUS_8oP42VNREHh9pCWOVCpkY4nNxF5k9QZ417yueuGaVEaPAzXiA0i5DznCKgWRqskEXLZHQ-HYfQYHr1EbhOlAqKNpEGG6Md-RUIcvXGcIX5SuB6S5wL512DavpnMwY9H-mk5K9hXyrXFj4zHFr5CbWHuxuaAt8s8mx1LZhfWSCzF_K0lnDX6p8k9i6DA3w8Jq10s90sKpFOwzYUA4X7zyI0NxlAEJbGQe5bEeJOngqHvwxxrI1ET26g6BUb_EB_4dy-3nyxkHQ3u2lStRm5KagwyV5gF9XuIJa0ZcoHFvuBa2kBlxt_aS5PkoSOI398eiA",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "not_yet_valid"
+      }
+    },
+    {
+      "name": "wrong_audience",
+      "description": "the token is for another service",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYWRpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.cCsRHBLr734yjs85fhZsc7dj-kfV72ulHx79uSYNCwhzDPZwZzJyLjFbKTnM-bkG02z9OxsCRF4x7YkNFmVuhgLeh-7guaaNeUvJ4Xtq2kr8YliSEphrrbrPVSVbjqHNw8Iaedv243QJ9CrnwP1Mi6iKI1V7pIMUf2lqWgygfjJsuq0Jo1v49HYl6RepvGkF7EprURjT8_Jf0zFuYwZ1qqjD1gIbzmTyXnVUfbeRo_11pTfrjH3XmPdkAq7OejuZUl1PkKyGpq3KSOYUpfDivtvsBF0waRb1QgTS5DrREFr-qgjQ4hcKSJHVgYKXvBUK_hbWXDcEeXWK3KkvDMsv_g",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "wrong_audience"
+      }
+    },
+    {
+      "name": "two_audiences",
+      "description": "a token with more than one audience is refused even if this service is one of them",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOlsibmF2aSIsIm5hZGkiXSwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.YjLGW4K0_-WBzsyiOv8Ch4jqmkgqm7YEfkUnKK1HbcG5m1Z2QXXH7T3uUgzML_oU-KLBPc9uJcdD-iE5cMPNp4e1snwNEPFVrxS_jkgGiHU6awYZPATrooQ6-MX3etX3OttfH4jEdRcnR8jB_ZPpfWoWjdscdLx1GDmgAyX07Hn7wR8TMw3Fvl-y0Vxcdgy7buBV9ceFBLDkuwB4b0RN-eu9DA3VedgcFjQBgN4PLilcdADPCGngsv8LfR2L8A9YuyyQ09-fzZ0jd0UWMxtch42yattYNpLzNnAVJiE5pAsikPomyrQOVwUevl_t2Y1TonBhOfJ-v_WGMDYgW1kBPg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "wrong_audience"
+      }
+    },
+    {
+      "name": "wrong_issuer",
+      "description": "iss is not the issuer of NICE",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.FGvzq1sGw7cvnHJwkru4jBoyEleElhsi5zwTCFos06SNyKZJOA2xcOLHjTIBpbWils2yxT5Xgy3WJ1xOiSIadLlHS2PXSeJzz4OVksWi-YrJLgXfmoi0JdAkAu3YrXhJ9LsoeQVC6shR5t0SVS2h06nPuNZmJMuyWiFnw7WcYQBXpbYTc0YAMA__VYS_K7thFjHad2yVh1RAP0sLIMIpwbJJseyMJvaTTMvH6SWwceE5P0rrbiWxpWL3FOd4V6AvRIl_XNdWMlfdFEF9f64wTCJK0vXEBcJWjBCD_PVnRSDXcDL61LVPfFE0QH0PrNudHpblxGQCIzSKvASEIZyyaw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "wrong_issuer"
+      }
+    },
+    {
+      "name": "alg_none",
+      "description": "an unsigned token",
+      "token": "eyJhbGciOiJub25lIiwidHlwIjoiSldUIiwia2lkIjoidmVjdG9yLWtleS0xIn0.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "algorithm_not_allowed"
+      }
+    },
+    {
+      "name": "alg_hs256",
+      "description": "a token signed with HMAC; only RS256 is allowed",
+      "token": "eyJhbGciOiJIUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.gxh_378SF3qOzZH2arb6lJCblLU0yUt6slAtScHVNdI",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "algorithm_not_allowed"
+      }
+    },
+    {
+      "name": "unknown_kid",
+      "description": "signed by a key that is not in the JWKS",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktdW5rbm93biIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.HlCUxoYCfB3MfPfhsrhl0BcwVfEM5hErr-ZhrOKjsz13TMtjO2Zce-t7QKCX78-AXUfOXbkh7zbZtPU6wcTSqFhbCh2cj8VboBzzFuVoFWTgeGpPZ_oDg_bV91mfcH67Gu18D9wwlxR5_IrJLmZ2cvtTUCGCJ2m32dh4c1BbKYrieuRXZTn54tN9iMUwtQG2xulAjUifGO8thq6HSsxhay3bRHPTedq0YIYYaMXuXqUbRnVcxIZtH9Kzt2qXEboQ-Ig9asFbOb1MFKSSASyrz3KfL8NgGknz8y16FFLR_d6HbIj3qdQnIojMaVYfNTuDDXATf5c3FYGB4rCSbrIMZQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "unknown_key"
+      }
+    },
+    {
+      "name": "bad_signature",
+      "description": "the payload was changed after signing",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSIsImF1ZCI6Im5hdmkiLCJpYXQiOjE3OTMzMjg0MDAsImV4cCI6MTc5MzMzODk5OSwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInBlcm1zIjpbIm5hdmkuYWRtaW4uYWxsIl19.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "bad_signature"
+      }
+    },
+    {
+      "name": "malformed",
+      "description": "not a JWT",
+      "token": "not-a-token",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "malformed"
+      }
+    },
+    {
+      "name": "missing_token",
+      "description": "no Authorization header",
+      "token": "",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "missing_token"
+      }
+    },
+    {
+      "name": "permission_missing",
+      "description": "the token does not hold the permission the operation needs",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.delete"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 403,
+        "error": "insufficient_scope",
+        "description": "permission_denied"
+      }
+    },
+    {
+      "name": "project_mismatch",
+      "description": "the request names another project than the token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "project": "prj_01a17b4d-7777-7555-853c-3e3a50f76435"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 403,
+        "error": "insufficient_scope",
+        "description": "project_mismatch"
+      }
+    },
+    {
+      "name": "project_matches",
+      "description": "the request names the project of the token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "project": "prj_01a17b4d-60ec-7555-853c-3e3a50f76435"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "stale_principal",
+      "description": "the principal was disabled after the token was issued",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "principal_disabled",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "issued_after_change",
+      "description": "the change is older than the token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "principal_disabled",
+          "occurred_at": 1793328100
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "stale_organization",
+      "description": "the organization was suspended after the token was issued",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "org_state_changed",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "stale_project",
+      "description": "the project changed after the token was issued",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "project_id": "prj_01a17b4d-60ec-7555-853c-3e3a50f76435",
+          "kind": "project_state_changed",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "change_of_another_principal",
+      "description": "a change concerning someone else does not touch this token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-3333-7000-8000-000000000003",
+          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "kind": "member_removed",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "change_in_another_organization",
+      "description": "a change of the same principal in another organization does not touch this token",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_01a17b49-9999-7632-a32f-d47311c068c1",
+          "kind": "member_removed",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "sensitive_allowed",
+      "description": "a sensitive operation passes when the online check allows it",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "sensitive": true
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "check": "allow",
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "sensitive_denied",
+      "description": "a sensitive operation is refused when the online check denies it",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "sensitive": true
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "check": "deny",
+      "expect": {
+        "status": 403,
+        "error": "insufficient_scope",
+        "description": "access_denied"
+      }
+    },
+    {
+      "name": "sensitive_check_down",
+      "description": "a sensitive operation fails closed when NICE cannot be reached",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "sensitive": true
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "check": "down",
+      "expect": {
+        "status": 503,
+        "error": "temporarily_unavailable",
+        "description": "access_check_unavailable"
+      }
+    },
+    {
+      "name": "organization_rejected",
+      "description": "the service accepts only the organizations on its list",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_list",
+        "orgs": [
+          "org_01a17b49-9999-7632-a32f-d47311c068c1"
+        ]
+      },
+      "expect": {
+        "status": 403,
+        "error": "insufficient_scope",
+        "description": "org_rejected"
+      }
+    },
+    {
+      "name": "organization_listed",
+      "description": "the organization is on the list of the service",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_list",
+        "orgs": [
+          "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+        ]
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "organization_created_on_first_use",
+      "description": "a service that creates tenants on first use accepts a new organization",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "provision"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "tenant_from_client_ignored",
+      "description": "the tenant is the organization of the token, never what the client asks for",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.kcP66MXVHUhL0O-vXLeEQh1-FNjN6bwiBZ23c65yE8yiwPfbmHzx1SQRhtrXcCMBmpGzEftlbj30eUw3sVj8M-9WPz3xhg8PlsPhfXZURrACIz2tnSp6mTa1zzwe_i4yq-J7w4epHe5YVjFKwH26-PyVru1OgPIROIkcLYTCckLmyjP3gWVYpCAt2g6Tl3FPpYUxYEKxi-8oOBk9CUT4KJZsmZ-PLs1SLmIt-Ot7qjOdFzVPFy8bmHJF5Pwk1PL9qa2MeL9ej0ErkPJzoCfD9-KkotRGnpFQG3XHo1dPJLJdk7TIelhcUd2IQgC0ivP9ubJI7buX_a0N-ai0jYeBag",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read",
+        "client_tenant": "org_01a17b49-9999-7632-a32f-d47311c068c1"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "valid_exchanged_token",
+      "description": "a token a service backend got by token exchange: accepted like any other, the handler sees the user as subject and act.sub as actor",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMiIsInR5cCI6IkpXVCJ9.eyJhY3QiOnsic3ViIjoibmFpYS1iYWNrZW5kIn0sImF1ZCI6Im5hdmkiLCJhenAiOiJuYWlhLWJhY2tlbmQiLCJleHAiOjE3OTMzMzAyMDAsImlhdCI6MTc5MzMyODQwMCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUudGVzdCIsImp0aSI6IjAxOTJmM2E0LTdiMWMtN2QyZS05YTEwLTNjNWY2ZTdkOGE5MCIsIm5pY2Vfb3JnX2lkIjoib3JnXzAxYTE3YjQ5LTU2YmMtNzYzMi1hMzJmLWQ0NzMxMWMwNjhjMSIsIm5pY2VfcHJpbmNpcGFsX3R5cGUiOiJ1c2VyIiwicGVybXMiOlsibmF2aS5vcmRlcnMucmVhZCJdLCJwcmoiOiJwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1IiwicHYiOjEyLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.dWn8ArWxnJ0L4f86_6fknEe1vFIgpQtJRpIQSuIH45cm8JNKDINatDq6lGgNRKz9d5jEdkWWZg-FmWv1mxzaloWaPaMj3HU5D2F6Ka7-eQOJBPJ_dqRr5C10KOMlGYqNi2xIX-5sk8fVs9GsBSqkLOuiTzKYegl-YCy5qszBSpXcTO8Q8T_V3plYNobpRoQfVPbL4uQ-ltuety7SBf0Ek6DWXcicSNeoGdeT1v0fptlq_R7TUBZSWj3NhPPvLUlCoG-ad2tIVqGNAWTk45xzoFQlNStZSAfBuIzCvbZMkDeRNR9YVLAw7K3_sQ4cvY8NvFp0YI7nPXc33Z8TYHylVw",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+        "actor": "naia-backend"
+      }
+    },
+    {
+      "name": "expired_exchanged_token",
+      "description": "a token from a token exchange whose exp is past is refused for its expiry, act changes nothing",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMiIsInR5cCI6IkpXVCJ9.eyJhY3QiOnsic3ViIjoibmFpYS1iYWNrZW5kIn0sImF1ZCI6Im5hdmkiLCJhenAiOiJuYWlhLWJhY2tlbmQiLCJleHAiOjE3OTMzMjg5MzksImlhdCI6MTc5MzMyODQwMCwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUudGVzdCIsImp0aSI6IjAxOTJmM2E0LTdiMWMtN2QyZS05YTEwLTNjNWY2ZTdkOGE5MCIsIm5pY2Vfb3JnX2lkIjoib3JnXzAxYTE3YjQ5LTU2YmMtNzYzMi1hMzJmLWQ0NzMxMWMwNjhjMSIsIm5pY2VfcHJpbmNpcGFsX3R5cGUiOiJ1c2VyIiwicGVybXMiOlsibmF2aS5vcmRlcnMucmVhZCJdLCJwcmoiOiJwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1IiwicHYiOjEyLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.MXJjXKj0UQsGPZ6GLn1rrdeVA8dOsURaPCUr-HUgItdSeovEimUqBswa6ombot_yvQ7XxIpa9FxLQLZBMkRYMK6rzWCDkgQ-zJ1kvdN-1j-tzhCFy5EMzMtGAx6G84IjxuNFDFDfohGlW7nKvsmLNaYmj-9dM5Uzeg6wC-XhmHFYwQWRbomz5H4bqoZsTGak0r-EDsItdqcZuFjKtwKxyTmK0tq_TOEBuiPFqdpkZpEDJUrnBJFTl4NLSvYGHq12sHQmXzYAsKkJ2aRlE5zDtQF-XxZuZVgF-b5I5wZHFoQOsbRd9uuX-G5XLH3yjkMwq-sUsVLN2CJVC6v4VxeOIg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "expired"
+      }
+    },
+    {
+      "name": "valid_act_as_token",
+      "description": "a token of a platform operator acting in an organization it is not a member of: accepted like any other, the handler sees nice_act_as",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMyIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9hY3RfYXMiOiJvcmdfMDAwMDAwMDAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.2rkiK4Lza2ZNs_n_oi1tdSD7Q0GJ-lt7Di0VcDT83bRbJpPR6u-gdBOvYcDqZZoSUX6ZeNDP1rOcfwHRb78EWzqQSPWakbSO7_IZKJrpgWSJz9lhU2ci6paAT9dxcAeBoJtNkn97yBwPPFYtTf_OSrhdudcWkmIROfvCBSr76p4snQRCbXO62lwIbFxwiA0WQKPYhQhVVNupSh3pjDxjegF2FENUH5hZrs1qNVIAIX9QQB9XHajnGt3slNzsXyIpukQwmxDgxU6xlF21W8mdsCFeA-CwcjOrxpbNSig1lCrsqVNknXiHcVk0tUUfH1w6-2Yp2y7A6Pv6p5lwRYfQcg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+        "act_as": "org_00000000-0000-7000-8000-000000000001"
+      }
+    },
+    {
+      "name": "stale_act_as_operator",
+      "description": "a token act-as is stale after a change of its principal in the organization nice_act_as names",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMyIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9hY3RfYXMiOiJvcmdfMDAwMDAwMDAtMDAwMC03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.2rkiK4Lza2ZNs_n_oi1tdSD7Q0GJ-lt7Di0VcDT83bRbJpPR6u-gdBOvYcDqZZoSUX6ZeNDP1rOcfwHRb78EWzqQSPWakbSO7_IZKJrpgWSJz9lhU2ci6paAT9dxcAeBoJtNkn97yBwPPFYtTf_OSrhdudcWkmIROfvCBSr76p4snQRCbXO62lwIbFxwiA0WQKPYhQhVVNupSh3pjDxjegF2FENUH5hZrs1qNVIAIX9QQB9XHajnGt3slNzsXyIpukQwmxDgxU6xlF21W8mdsCFeA-CwcjOrxpbNSig1lCrsqVNknXiHcVk0tUUfH1w6-2Yp2y7A6Pv6p5lwRYfQcg",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "change_in_platform_without_act_as",
+      "description": "a change of the principal in the platform organization does not touch a token without nice_act_as",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktMyIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInByaiI6InByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJwdiI6MTIsInNjb3BlIjoibmljZTphdWQ6bmF2aSBuaWNlOnByajpwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1Iiwic3ViIjoidXNyXzAxYTE3YjRlLTExMTEtNzAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9.jyQIrP4oSKnfns5Ex7azt8yxwrLftY0eVwAuM90T02a43Ijpkt3sNXXcdcXBBWILbaqJVNrBqHGTHLwraHtkFfsCKqqO5t_DS7yeSNOQ49Dp2MtR2UaaiK5sRDDzNWWmnrLIrnm1vbcQOXJw3nYFS962rYagPYXppVygqtV2UzUCDyya8y3scE3_jbF6cza_gFJB1lKnHoKhS9C_pdcpUX-z2Lt4ltIPeQ0xQi5d0kXgx1gFJrnL4ayYDAmDbl1FMMzYzxqTRb5eGZGvr41TrkvBvFbH2ZlEO4faD1jmki8hSPSEXRxSvRvT9yA8FBmx-ACn1p154U5rDqrd5LLG6g",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "changes": [
+        {
+          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
+          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "kind": "binding_deleted",
+          "occurred_at": 1793328880
+        }
+      ],
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    }
+  ]
+}

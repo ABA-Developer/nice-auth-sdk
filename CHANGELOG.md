@@ -2,12 +2,12 @@
 
 ## v0.1.0
 
-Versi publik pertama, berlisensi Apache-2.0. Kode berasal dari `pkg/niceauth` di repo NICE, setelah pengerasan keamanan:
+First public release, under Apache-2.0. The code comes from `pkg/niceauth` in the NICE repo, after a security hardening pass:
 
-- Alamat NICE dan alamat service wajib `https`; `http` hanya untuk loopback, atau dengan `AllowInsecureHTTP`.
-- Panggilan SDK ke NICE tidak mengikuti redirect.
-- `Client.Transport` dan `Client.HTTPClient` terikat ke alamat satu service dan menolak host lain dengan `ErrForeignHost`.
-- `ExchangeClient` menyimpan token per subject token.
-- Konfigurasi, token, dan klien tidak mencetak rahasianya.
-- Contoh yang bisa dijalankan di `examples/` untuk empat peran: `service_account`, `service`, `exchange`, `connect`.
-- `layout_test.go` menjaga agar `verify` dan `credentials` tidak saling mengimpor.
+- NICE and service addresses must be `https`; plain `http` works for loopback only, or with `AllowInsecureHTTP`.
+- Calls from the SDK to NICE don't follow redirects.
+- `Client.Transport` and `Client.HTTPClient` are bound to one service address and refuse any other host with `ErrForeignHost`.
+- `ExchangeClient` caches tokens per subject token.
+- Configs, tokens, and clients don't print their secrets.
+- Runnable examples in `examples/` for four roles: `service_account`, `service`, `exchange`, `connect`.
+- `layout_test.go` keeps `verify` and `credentials` from importing each other.

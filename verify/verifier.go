@@ -217,6 +217,10 @@ func (v *Verifier) Verify(ctx context.Context, token string) (*Claims, error) {
 	if err := json.Unmarshal(payload, &c); err != nil {
 		return nil, v.reject(invalid(ReasonMalformed))
 	}
+	// NICE never issues both: a token that says its permissions twice could say two different things.
+	if c.PermsRef != "" && c.Permissions != nil {
+		return nil, v.reject(invalid(ReasonMalformed))
+	}
 	if c.Issuer != v.cfg.Issuer {
 		return nil, v.reject(invalid(ReasonIssuer))
 	}

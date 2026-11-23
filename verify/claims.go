@@ -22,6 +22,9 @@ type Claims struct {
 	ProjectID     string   `json:"prj"`
 	Permissions   []string `json:"perms"`
 	PolicyVersion int64    `json:"pv"`
+	// PermsRef is perms_ref: the reference (see PermsRef) of the permissions of a token too large to carry them.
+	// Verify resolves it and fills Permissions, so a handler reads the permissions the same way on every token.
+	PermsRef string `json:"perms_ref"`
 	// Actor is act.sub: the client_id of the service backend that exchanged the user's token for this one and
 	// acts on behalf of Subject. Empty on a token the user's own client received. It changes no decision.
 	Actor string `json:"-"`

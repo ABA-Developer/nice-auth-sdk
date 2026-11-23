@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "issuer": "https://auth.example.test",
   "service": "navi",
   "jwks": {
@@ -34,6 +34,14 @@
         "kid": "vector-key-4",
         "alg": "RS256",
         "n": "4bA56R7LcS4AjXBVQ465NFu-pLba_5MfqceASPsRBqy5nhzoVwoBo0KLKPst5XlciS7zxcuE8izutDvywZ3gmIFP3oJG3tz2up9d-LabHEsFXdm_oc_SmV-YLSGrvgj-4b2dUxFg-bo_E3XjiqtwaLESLQPDU95EYeQDzFStrxf72tZy5Lc3361PIQXFhqSmmbsgf398LqK_idlyIHhQTXIosoPs78aOTllqpbdg4UOY_a7V4qXe9xCUUbN5tFxbISMohlOEK2AsuZZ9eV7WQbEDTyl4NLe0sbAcu3gHAyUWXZR6g0quWsifynBwFGaktkUQLwQV8_ygtc_9AaKI-Q",
+        "e": "AQAB"
+      },
+      {
+        "use": "sig",
+        "kty": "RSA",
+        "kid": "vector-key-5",
+        "alg": "RS256",
+        "n": "1h47fIvp_jpAJ515SG-rR43zPekFtOvuK8Wd4BU-8bcBKZjNjeydUMA8f5I59_xAne8nGcsyAXlobLhvqGV48dV1dKR85CrIV_DrU8DDgB8mrqKZ1Z7CwsSqgHQB1Lm8wHgroo7noJIFFrhtkxloSic1REXwO1I5Vcfwg9yLa3FRTUhx2vJ-2aKapWgwyph4Il1v6xLOjpnzL9V_ZhGg8_DlzLLl_DWsjSE76Y9ZTBKlas8rkHFoa31XO8EPx5g33060Sr_GqPFz1AyFRxe4zCeKzV9Z5VpBIcgYuh0ajuWNllA0fFbZV10cOnkHKfwUHHpzvCJU8jnyTWNVzSFsoQ",
         "e": "AQAB"
       }
     ]
@@ -885,6 +893,161 @@
         "status": 200,
         "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
       }
+    },
+    {
+      "name": "perms_ref_resolved",
+      "description": "a token that carries perms_ref instead of perms: the list NICE resolves it to holds the permission",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtc19yZWYiOiJ2MS55alUtMW9kX2NSMzk2eG5sSFlTbm54YU1HbGZtRlhEeFMwWGExTHFyQkdzIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RkaKgcQdK88PaK6fO5B0kABnssPFp1I5yWa9j9dfTzCLm3XMGBdYtDgU-sTgzMrUcJ-yw-84pM-MCOT6yrKtjza_q1rBy3UGxqc5Vjy2eqqer4T_B9Hhyh-1WgBY7jbNOVyduxHxcLadP6FZJs14Htc6FZ2k4RfE3-Ch6cxXHtS6uHi23NRWttmCJCrkrG3LSnS7yCxWxOBfIOkjVGu0SBf3SxOr9P-DwL4kVbthTJ_zg2y_QoxX1Dr0j22GojaqTkwz1YpfUsZywjG8w_bfTTgqjrtOugNJVtcOY3DfmCf-uwDF-5-jX1kTBD7-ap-ZK-3uamP96vxlBgCa5ircuQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "match",
+        "permissions": [
+          "navi.orders.read",
+          "navi.routes.read"
+        ]
+      },
+      "expect": {
+        "status": 200,
+        "tenant": "org_01a17b49-56bc-7632-a32f-d47311c068c1"
+      }
+    },
+    {
+      "name": "perms_ref_permission_missing",
+      "description": "the list perms_ref names does not hold the permission the operation needs",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtc19yZWYiOiJ2MS55alUtMW9kX2NSMzk2eG5sSFlTbm54YU1HbGZtRlhEeFMwWGExTHFyQkdzIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RkaKgcQdK88PaK6fO5B0kABnssPFp1I5yWa9j9dfTzCLm3XMGBdYtDgU-sTgzMrUcJ-yw-84pM-MCOT6yrKtjza_q1rBy3UGxqc5Vjy2eqqer4T_B9Hhyh-1WgBY7jbNOVyduxHxcLadP6FZJs14Htc6FZ2k4RfE3-Ch6cxXHtS6uHi23NRWttmCJCrkrG3LSnS7yCxWxOBfIOkjVGu0SBf3SxOr9P-DwL4kVbthTJ_zg2y_QoxX1Dr0j22GojaqTkwz1YpfUsZywjG8w_bfTTgqjrtOugNJVtcOY3DfmCf-uwDF-5-jX1kTBD7-ap-ZK-3uamP96vxlBgCa5ircuQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.delete"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "match",
+        "permissions": [
+          "navi.orders.read",
+          "navi.routes.read"
+        ]
+      },
+      "expect": {
+        "status": 403,
+        "error": "insufficient_scope",
+        "description": "permission_denied"
+      }
+    },
+    {
+      "name": "perms_ref_mismatch",
+      "description": "NICE says perms_ref no longer matches the permissions of the principal: the token is stale",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtc19yZWYiOiJ2MS55alUtMW9kX2NSMzk2eG5sSFlTbm54YU1HbGZtRlhEeFMwWGExTHFyQkdzIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RkaKgcQdK88PaK6fO5B0kABnssPFp1I5yWa9j9dfTzCLm3XMGBdYtDgU-sTgzMrUcJ-yw-84pM-MCOT6yrKtjza_q1rBy3UGxqc5Vjy2eqqer4T_B9Hhyh-1WgBY7jbNOVyduxHxcLadP6FZJs14Htc6FZ2k4RfE3-Ch6cxXHtS6uHi23NRWttmCJCrkrG3LSnS7yCxWxOBfIOkjVGu0SBf3SxOr9P-DwL4kVbthTJ_zg2y_QoxX1Dr0j22GojaqTkwz1YpfUsZywjG8w_bfTTgqjrtOugNJVtcOY3DfmCf-uwDF-5-jX1kTBD7-ap-ZK-3uamP96vxlBgCa5ircuQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "mismatch"
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "token_stale"
+      }
+    },
+    {
+      "name": "perms_ref_resolution_down",
+      "description": "perms_ref is not known and NICE cannot be reached: the request fails closed",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtc19yZWYiOiJ2MS55alUtMW9kX2NSMzk2eG5sSFlTbm54YU1HbGZtRlhEeFMwWGExTHFyQkdzIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RkaKgcQdK88PaK6fO5B0kABnssPFp1I5yWa9j9dfTzCLm3XMGBdYtDgU-sTgzMrUcJ-yw-84pM-MCOT6yrKtjza_q1rBy3UGxqc5Vjy2eqqer4T_B9Hhyh-1WgBY7jbNOVyduxHxcLadP6FZJs14Htc6FZ2k4RfE3-Ch6cxXHtS6uHi23NRWttmCJCrkrG3LSnS7yCxWxOBfIOkjVGu0SBf3SxOr9P-DwL4kVbthTJ_zg2y_QoxX1Dr0j22GojaqTkwz1YpfUsZywjG8w_bfTTgqjrtOugNJVtcOY3DfmCf-uwDF-5-jX1kTBD7-ap-ZK-3uamP96vxlBgCa5ircuQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "down"
+      },
+      "expect": {
+        "status": 503,
+        "error": "temporarily_unavailable",
+        "description": "permissions_unavailable"
+      }
+    },
+    {
+      "name": "perms_ref_other_list",
+      "description": "the answer holds a list whose reference is not perms_ref: it is not used, even though it holds the permission",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtc19yZWYiOiJ2MS55alUtMW9kX2NSMzk2eG5sSFlTbm54YU1HbGZtRlhEeFMwWGExTHFyQkdzIiwicHJqIjoicHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInB2IjoxMiwic2NvcGUiOiJuaWNlOmF1ZDpuYXZpIG5pY2U6cHJqOnByal8wMWExN2I0ZC02MGVjLTc1NTUtODUzYy0zZTNhNTBmNzY0MzUiLCJzdWIiOiJ1c3JfMDFhMTdiNGUtMTExMS03MDAwLTgwMDAtMDAwMDAwMDAwMDAxIn0.RkaKgcQdK88PaK6fO5B0kABnssPFp1I5yWa9j9dfTzCLm3XMGBdYtDgU-sTgzMrUcJ-yw-84pM-MCOT6yrKtjza_q1rBy3UGxqc5Vjy2eqqer4T_B9Hhyh-1WgBY7jbNOVyduxHxcLadP6FZJs14Htc6FZ2k4RfE3-Ch6cxXHtS6uHi23NRWttmCJCrkrG3LSnS7yCxWxOBfIOkjVGu0SBf3SxOr9P-DwL4kVbthTJ_zg2y_QoxX1Dr0j22GojaqTkwz1YpfUsZywjG8w_bfTTgqjrtOugNJVtcOY3DfmCf-uwDF-5-jX1kTBD7-ap-ZK-3uamP96vxlBgCa5ircuQ",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "match",
+        "permissions": [
+          "navi.orders.read"
+        ]
+      },
+      "expect": {
+        "status": 503,
+        "error": "temporarily_unavailable",
+        "description": "permissions_unavailable"
+      }
+    },
+    {
+      "name": "perms_and_perms_ref",
+      "description": "a token that carries both perms and perms_ref says its permissions twice and is refused",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6InZlY3Rvci1rZXktNSIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJuYXZpIiwiYXpwIjoiY29uc29sZSIsImV4cCI6MTc5MzMzMDIwMCwiaWF0IjoxNzkzMzI4NDAwLCJpc3MiOiJodHRwczovL2F1dGguZXhhbXBsZS50ZXN0IiwianRpIjoiMDE5MmYzYTQtN2IxYy03ZDJlLTlhMTAtM2M1ZjZlN2Q4YTkwIiwibmljZV9vcmdfaWQiOiJvcmdfMDFhMTdiNDktNTZiYy03NjMyLWEzMmYtZDQ3MzExYzA2OGMxIiwibmljZV9wcmluY2lwYWxfdHlwZSI6InVzZXIiLCJwZXJtcyI6WyJuYXZpLm9yZGVycy5yZWFkIl0sInBlcm1zX3JlZiI6InYxLnlqVS0xb2RfY1IzOTZ4bmxIWVNubnhhTUdsZm1GWER4UzBYYTFMcXJCR3MiLCJwcmoiOiJwcmpfMDFhMTdiNGQtNjBlYy03NTU1LTg1M2MtM2UzYTUwZjc2NDM1IiwicHYiOjEyLCJzY29wZSI6Im5pY2U6YXVkOm5hdmkgbmljZTpwcmo6cHJqXzAxYTE3YjRkLTYwZWMtNzU1NS04NTNjLTNlM2E1MGY3NjQzNSIsInN1YiI6InVzcl8wMWExN2I0ZS0xMTExLTcwMDAtODAwMC0wMDAwMDAwMDAwMDEifQ.XCAQGyD-ZgkQMf6GTy53I22M6CyGb0fg5XcGc0SxwUhZjXmULXHUOHsAT_8NV3Q2FP4VpMu35D0_hc8tqIqOatztmZ_aX7rkdJXJfAL04Rqy4__DTf_DJAGELsYBdr4KEhLn163Ifzzz2hKeraXqMDCyoWLKIdU4vdjFyLykQqW3akOXxuR9wQxbanj96qct2NHJW6z0fbVuiJ30F_elIcevXBAJyb6HOs9OT81kK_l1S77ZL7-4aoBSxwmiHFVZlUdHVvZcNN-Q-mqRm5_bSgf8SECKUn2QNJTAUzckI58PcqOwEikYIhJ9gEeXBe2BMG5pKxvS7llNAGfyMhBKrA",
+      "now": 1793329000,
+      "request": {
+        "permission": "navi.orders.read"
+      },
+      "tenant": {
+        "policy": "allow_all"
+      },
+      "resolve": {
+        "answer": "match",
+        "permissions": [
+          "navi.orders.read",
+          "navi.routes.read"
+        ]
+      },
+      "expect": {
+        "status": 401,
+        "error": "invalid_token",
+        "description": "malformed"
+      }
+    }
+  ],
+  "perms_refs": [
+    {
+      "permissions": [
+        "navi.routes.read",
+        "navi.orders.read",
+        "navi.orders.read"
+      ],
+      "perms_ref": "v1.yjU-1od_cR396xnlHYSnnxaMGlfmFXDxS0Xa1LqrBGs"
+    },
+    {
+      "permissions": [
+        "b.x.read",
+        "a.y.edit"
+      ],
+      "perms_ref": "v1.M8akJ-SX6NtB-NmmrCA-029nXXffK7dYwDwxzAq_zao"
+    },
+    {
+      "permissions": [],
+      "perms_ref": "v1.47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU"
     }
   ]
 }

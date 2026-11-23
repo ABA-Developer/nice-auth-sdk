@@ -16,6 +16,15 @@ const (
 	staleTokensPerSet = 16
 )
 
+// PermissionStore is a second place to keep permission lists, behind the memory of a PermissionCache: a store
+// several replicas share, or one that outlives a restart. The cache reads it when its memory has no list for a
+// reference and writes every list NICE gives. A list it returns is used only when its reference (PermsRef) is
+// ref, so the store needs no more trust than a cache; an error is read as a miss.
+type PermissionStore interface {
+	Get(ctx context.Context, ref string) (permissions []string, ok bool, err error)
+	Put(ctx context.Context, ref string, permissions []string) error
+}
+
 // PermissionCache keeps what a Verifier learned from resolving perms_ref: the permission list of each reference,
 // and the tokens whose reference NICE said no longer matches. A reference is the hash of its list, so an entry
 // never goes stale and tokens of every principal that hold the same permissions share one. It is safe for
@@ -31,6 +40,7 @@ type PermissionCache struct {
 	maxStale int
 	// flights are the resolutions under way, so requests that need the same one wait for it instead of asking too.
 	flights map[string]*flight
+	store   PermissionStore
 }
 
 // resolution is the checked answer of a resolver: the list when match is set and err is nil.
@@ -60,6 +70,33 @@ func NewPermissionCache(maxSets int) *PermissionCache {
 	}
 	return &PermissionCache{max: maxSets, sets: map[string]*list.Element{}, order: list.New(),
 		stale: map[string]int64{}, maxStale: maxSets * staleTokensPerSet, flights: map[string]*flight{}}
+}
+
+// WithStore puts store behind the memory of the cache and returns the cache. Call it before the cache is used.
+func (pc *PermissionCache) WithStore(store PermissionStore) *PermissionCache {
+	pc.store = store
+	return pc
+}
+
+// fromStore returns the list the store holds for ref when it is the list ref names, and keeps it in memory.
+func (pc *PermissionCache) fromStore(ctx context.Context, ref string) ([]string, bool) {
+	if pc.store == nil {
+		return nil, false
+	}
+	perms, ok, err := pc.store.Get(ctx, ref)
+	if err != nil || !ok || PermsRef(perms) != ref {
+		return nil, false
+	}
+	pc.put(ref, perms)
+	return perms, true
+}
+
+// keep stores a list NICE gave, in memory and in the store.
+func (pc *PermissionCache) keep(ctx context.Context, ref string, permissions []string) {
+	pc.put(ref, permissions)
+	if pc.store != nil {
+		_ = pc.store.Put(ctx, ref, permissions)
+	}
 }
 
 // once runs resolve for key, or waits for the run of the same key that is under way and returns its answer. A

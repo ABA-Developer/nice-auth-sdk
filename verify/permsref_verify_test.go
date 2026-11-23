@@ -527,3 +527,120 @@ func TestAFailedResolutionIsLoggedAtMostOnceAMinute(t *testing.T) {
 		t.Fatalf("the error of the resolver is logged: %s", logs.String())
 	}
 }
+
+// memStore is a PermissionStore in memory that counts its calls and can be made to fail.
+type memStore struct {
+	mu         sync.Mutex
+	m          map[string][]string
+	gets, puts int
+	fail       bool
+}
+
+func (m *memStore) Get(_ context.Context, ref string) ([]string, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.gets++
+	if m.fail {
+		return nil, false, errors.New("the store is down")
+	}
+	perms, ok := m.m[ref]
+	return slices.Clone(perms), ok, nil
+}
+
+func (m *memStore) Put(_ context.Context, ref string, perms []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.puts++
+	if m.fail {
+		return errors.New("the store is down")
+	}
+	if m.m == nil {
+		m.m = map[string][]string{}
+	}
+	m.m[ref] = slices.Clone(perms)
+	return nil
+}
+
+func (m *memStore) snapshot() (list []string, gets, puts int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return slices.Clone(m.m[vRef]), m.gets, m.puts
+}
+
+func withStore(store PermissionStore) func(*Config) {
+	return func(c *Config) { c.Permissions = NewPermissionCache(0).WithStore(store) }
+}
+
+func TestThePermissionStoreIsReadBeforeNICE(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	store := &memStore{m: map[string][]string{vRef: vRefPerms}}
+	rs := &fakeResolver{answer: down}
+	token := s.sign(t, refClaims(nil))
+	for name, resolver := range map[string]PermissionResolver{"NICE down": rs, "no resolver": nil} {
+		v := refVerifier(t, s, resolver, withStore(store))
+		_, before, _ := store.snapshot()
+		for i := 0; i < 3; i++ {
+			if c := mustVerify(t, v, token); !c.Has("navi.orders.read") || !c.Has("navi.routes.read") {
+				t.Fatalf("%s: the list of the store is the list of the token: %+v", name, c.Permissions)
+			}
+		}
+		if _, gets, _ := store.snapshot(); gets != before+1 {
+			t.Fatalf("%s: memory is in front of the store: %d reads for three requests", name, gets-before)
+		}
+	}
+	if _, _, puts := store.snapshot(); rs.count() != 0 || puts != 0 {
+		t.Fatalf("NICE was asked %d times and the store written %d times for a list the store had", rs.count(), puts)
+	}
+}
+
+func TestAResolvedListIsWrittenToThePermissionStore(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	store := &memStore{}
+	rs := &fakeResolver{answer: byRef}
+	token := s.sign(t, refClaims(nil))
+	mustVerify(t, refVerifier(t, s, rs, withStore(store)), token)
+	if list, _, puts := store.snapshot(); puts != 1 || !slices.Equal(list, vRefPerms) {
+		t.Fatalf("the store got %v in %d writes", list, puts)
+	}
+	rs.set(down)
+	if c := mustVerify(t, refVerifier(t, s, rs, withStore(store)), token); !c.Has("navi.orders.read") || rs.count() != 1 {
+		t.Fatalf("another process with the same store needs no NICE: %+v after %d resolutions", c.Permissions, rs.count())
+	}
+}
+
+func TestAStoreValueThatIsNotTheReferencedListIsIgnored(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	store := &memStore{m: map[string][]string{vRef: {"navi.admin.all"}}}
+	rs := &fakeResolver{answer: byRef}
+	v := refVerifier(t, s, rs, withStore(store))
+	token := s.sign(t, refClaims(nil))
+	if c := mustVerify(t, v, token); c.Has("navi.admin.all") || !c.Has("navi.orders.read") || rs.count() != 1 {
+		t.Fatalf("a store cannot give a token other permissions: %+v after %d resolutions", c.Permissions, rs.count())
+	}
+	if list, _, _ := store.snapshot(); !slices.Equal(list, vRefPerms) {
+		t.Fatalf("the store now holds the list NICE gave: %v", list)
+	}
+	rs.set(down)
+	store.mu.Lock()
+	store.m[vOtherRef] = []string{"navi.orders.read"}
+	store.mu.Unlock()
+	if _, err := v.Verify(context.Background(), s.sign(t, refClaims(map[string]any{"perms_ref": vOtherRef}))); refusal(err).Description != ReasonPermsDown {
+		t.Fatalf("with NICE down a wrong store value is still not used: %v", err)
+	}
+}
+
+func TestAFailingPermissionStoreIsAMiss(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	store := &memStore{fail: true}
+	rs := &fakeResolver{answer: byRef}
+	v := refVerifier(t, s, rs, withStore(store))
+	token := s.sign(t, refClaims(nil))
+	for i := 0; i < 2; i++ {
+		if c := mustVerify(t, v, token); !c.Has("navi.orders.read") {
+			t.Fatalf("request %d: %+v", i, c.Permissions)
+		}
+	}
+	if rs.count() != 1 {
+		t.Fatalf("%d resolutions: the list is kept in memory although the store fails", rs.count())
+	}
+}

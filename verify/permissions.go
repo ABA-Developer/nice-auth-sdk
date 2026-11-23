@@ -34,15 +34,18 @@ func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 		c.Permissions = perms
 		return nil
 	}
-	if v.cfg.Resolver == nil {
-		return down(errNoResolver)
-	}
 	// A mismatch is the answer for one principal, so the principal is part of the key. The call does not end with
 	// the request that started it: the requests waiting for its answer are still there.
 	key := strings.Join([]string{c.Subject, c.OrgID, c.ProjectID, c.ActAs, c.PermsRef}, "\x00")
 	res := v.perms.once(ctx, key, func() resolution {
 		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), maxResolutionWait)
 		defer cancel()
+		if perms, ok := v.perms.fromStore(rctx, c.PermsRef); ok {
+			return resolution{permissions: perms, match: true}
+		}
+		if v.cfg.Resolver == nil {
+			return resolution{err: errNoResolver}
+		}
 		perms, match, err := v.cfg.Resolver.Resolve(rctx, c)
 		switch {
 		case err != nil:
@@ -52,7 +55,7 @@ func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 		case PermsRef(perms) != c.PermsRef:
 			return resolution{err: errResolutionMismatch}
 		}
-		v.perms.put(c.PermsRef, perms)
+		v.perms.keep(rctx, c.PermsRef, perms)
 		return resolution{permissions: perms, match: true}
 	})
 	switch {

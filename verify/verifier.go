@@ -73,6 +73,8 @@ type Verifier struct {
 	feed  *feedState
 	// lifetimeWarned is the unix nanoseconds of the last warning about a token that outlives TokenTTL.
 	lifetimeWarned atomic.Int64
+	// resolutionWarned is the unix nanoseconds of the last warning about a perms_ref that could not be resolved.
+	resolutionWarned atomic.Int64
 }
 
 // New builds a Verifier. It reads the copy of the JWKS on disk and then asks NICE;

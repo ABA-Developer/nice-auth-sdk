@@ -1,10 +1,13 @@
 package verify
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -493,5 +496,34 @@ func TestAWaitingRequestStopsWhenItsOwnContextEnds(t *testing.T) {
 	}
 	if time.Since(start) > time.Second || rs.count() != 1 {
 		t.Fatalf("it waited %v and made %d resolutions", time.Since(start), rs.count())
+	}
+}
+
+func TestAFailedResolutionIsLoggedAtMostOnceAMinute(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	var logs bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&logs, nil))
+	now := time.Unix(vNow, 0)
+	clock := func(c *Config) { c.Now = func() time.Time { return now }; c.Log = log }
+	token := s.sign(t, refClaims(nil))
+
+	v := refVerifier(t, s, nil, clock)
+	for i := 0; i < 3; i++ {
+		_, _ = v.Verify(context.Background(), token)
+	}
+	if n := strings.Count(logs.String(), "Config.Resolver"); n != 1 {
+		t.Fatalf("a verifier without a resolver says so once, not per request: %d lines\n%s", n, logs.String())
+	}
+	now = now.Add(61 * time.Second)
+	_, _ = v.Verify(context.Background(), token)
+	if n := strings.Count(logs.String(), "Config.Resolver"); n != 2 {
+		t.Fatalf("it says so again a minute later: %d lines", n)
+	}
+
+	logs.Reset()
+	v = refVerifier(t, s, &fakeResolver{answer: down}, clock)
+	_, _ = v.Verify(context.Background(), token)
+	if !strings.Contains(logs.String(), "NICE is down") {
+		t.Fatalf("the error of the resolver is logged: %s", logs.String())
 	}
 }

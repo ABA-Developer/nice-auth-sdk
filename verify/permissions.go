@@ -8,6 +8,9 @@ import (
 // resolvePermissions fills c.Permissions of a token that carries perms_ref, or says why it cannot.
 func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 	down := unavailable("temporarily_unavailable", ReasonPermsDown)
+	if c.TokenID != "" && v.perms.isStale(c.TokenID) {
+		return invalid(ReasonStale)
+	}
 	if !strings.HasPrefix(c.PermsRef, permsRefV1) {
 		return down
 	}
@@ -23,6 +26,9 @@ func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 	case err != nil:
 		return down
 	case !match:
+		if c.TokenID != "" {
+			v.perms.markStale(c.TokenID, c.ExpiresAt, v.cfg.Now().Unix())
+		}
 		return invalid(ReasonStale)
 	case PermsRef(perms) != c.PermsRef:
 		return down

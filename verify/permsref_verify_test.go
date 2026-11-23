@@ -326,3 +326,70 @@ func TestVerifiersShareAPermissionCache(t *testing.T) {
 		t.Fatalf("a verifier with a cache of its own asks on its own: %d resolutions", rs.count())
 	}
 }
+
+func staleRefusal(err error) bool {
+	e := refusal(err)
+	return e.Status == 401 && e.Code == "invalid_token" && e.Description == ReasonStale
+}
+
+func TestAStaleTokenIsRememberedByItsID(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: mismatching}
+	v := refVerifier(t, s, rs)
+	token := s.sign(t, refClaims(nil))
+	for i := 0; i < 3; i++ {
+		if _, err := v.Verify(context.Background(), token); !staleRefusal(err) {
+			t.Fatalf("request %d: %v", i, err)
+		}
+	}
+	if rs.count() != 1 {
+		t.Fatalf("%d resolutions of one stale token, want 1", rs.count())
+	}
+	// The reference still names the permissions of another principal: its token is resolved on its own.
+	rs.set(byRef)
+	other := s.sign(t, refClaims(map[string]any{"sub": vUser2, "jti": "0192f3a4-7b1c-7d2e-9a10-000000000003"}))
+	if c := mustVerify(t, v, other); !c.Has("navi.orders.read") || rs.count() != 2 {
+		t.Fatalf("another token with the same reference: %+v after %d resolutions", c.Permissions, rs.count())
+	}
+	if _, err := v.Verify(context.Background(), token); !staleRefusal(err) || rs.count() != 2 {
+		t.Fatalf("the stale token stays refused although its reference is now cached: %v after %d resolutions", err, rs.count())
+	}
+}
+
+func TestAStaleTokenWithoutAnIDIsAskedAgain(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: mismatching}
+	v := refVerifier(t, s, rs)
+	token := s.sign(t, refClaims(map[string]any{"jti": nil}))
+	for i := 0; i < 2; i++ {
+		if _, err := v.Verify(context.Background(), token); !staleRefusal(err) {
+			t.Fatalf("request %d: %v", i, err)
+		}
+	}
+	if rs.count() != 2 {
+		t.Fatalf("%d resolutions: a token without jti cannot be remembered", rs.count())
+	}
+}
+
+func TestTheMemoryOfStaleTokensIsBounded(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: mismatching}
+	v := refVerifier(t, s, rs, func(c *Config) { c.Permissions = NewPermissionCache(1) })
+	limit := staleTokensPerSet
+	tokens := make([]string, limit+1)
+	for i := range tokens {
+		tokens[i] = s.sign(t, refClaims(map[string]any{"jti": "jti-" + itoa(int64(i)), "exp": vNow + 60 + int64(i)}))
+		if _, err := v.Verify(context.Background(), tokens[i]); !staleRefusal(err) {
+			t.Fatalf("token %d: %v", i, err)
+		}
+	}
+	if rs.count() != limit+1 {
+		t.Fatalf("%d resolutions for %d tokens", rs.count(), limit+1)
+	}
+	if _, err := v.Verify(context.Background(), tokens[limit]); !staleRefusal(err) || rs.count() != limit+1 {
+		t.Fatalf("the newest token is remembered: %v after %d resolutions", err, rs.count())
+	}
+	if _, err := v.Verify(context.Background(), tokens[0]); !staleRefusal(err) || rs.count() != limit+2 {
+		t.Fatalf("the token that expires first was forgotten and is asked again: %v after %d resolutions", err, rs.count())
+	}
+}

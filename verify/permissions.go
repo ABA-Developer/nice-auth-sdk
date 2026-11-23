@@ -8,7 +8,14 @@ import (
 // resolvePermissions fills c.Permissions of a token that carries perms_ref, or says why it cannot.
 func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 	down := unavailable("temporarily_unavailable", ReasonPermsDown)
-	if !strings.HasPrefix(c.PermsRef, permsRefV1) || v.cfg.Resolver == nil {
+	if !strings.HasPrefix(c.PermsRef, permsRefV1) {
+		return down
+	}
+	if perms, ok := v.perms.get(c.PermsRef); ok {
+		c.Permissions = perms
+		return nil
+	}
+	if v.cfg.Resolver == nil {
 		return down
 	}
 	perms, match, err := v.cfg.Resolver.Resolve(ctx, c)
@@ -20,6 +27,7 @@ func (v *Verifier) resolvePermissions(ctx context.Context, c *Claims) *Error {
 	case PermsRef(perms) != c.PermsRef:
 		return down
 	}
+	v.perms.put(c.PermsRef, perms)
 	c.Permissions = perms
 	return nil
 }

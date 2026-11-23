@@ -205,3 +205,124 @@ func TestAReferenceThatNoLongerMatchesMakesTheTokenStale(t *testing.T) {
 		t.Fatalf("mismatch: %v", err)
 	}
 }
+
+const (
+	vUser2 = "usr_01a17b4e-3333-7000-8000-000000000003"
+	// vThirdRef is the reference of vThirdPerms, computed outside Go (see permsref_test.go).
+	vThirdRef = "v1.M8akJ-SX6NtB-NmmrCA-029nXXffK7dYwDwxzAq_zao"
+)
+
+var (
+	vOtherPerms = []string{"navi.admin.all"}
+	vThirdPerms = []string{"a.y.edit", "b.x.read"}
+)
+
+// byRef answers each reference with the list it names, as NICE does for a principal whose permissions did not change.
+func byRef(c *Claims) ([]string, bool, error) {
+	switch c.PermsRef {
+	case vRef:
+		return slices.Clone(vRefPerms), true, nil
+	case vOtherRef:
+		return slices.Clone(vOtherPerms), true, nil
+	case vThirdRef:
+		return slices.Clone(vThirdPerms), true, nil
+	}
+	return nil, false, nil
+}
+
+func mustVerify(t *testing.T, v *Verifier, token string) *Claims {
+	t.Helper()
+	c, err := v.Verify(context.Background(), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+
+func TestAReferenceIsResolvedOncePerHash(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: byRef}
+	v := refVerifier(t, s, rs)
+	first := s.sign(t, refClaims(nil))
+	refreshed := s.sign(t, refClaims(map[string]any{"jti": "0192f3a4-7b1c-7d2e-9a10-000000000002", "iat": vNow - 60, "exp": vNow - 60 + 1800, "pv": 13}))
+	other := s.sign(t, refClaims(map[string]any{"sub": vUser2, "nice_org_id": vOrg2, "prj": vProject2, "jti": "0192f3a4-7b1c-7d2e-9a10-000000000003"}))
+	for name, token := range map[string]string{"the first request": first, "the same token again": first, "a token from a refresh": refreshed, "another principal": other} {
+		if c := mustVerify(t, v, token); !c.Has("navi.orders.read") || !c.Has("navi.routes.read") {
+			t.Errorf("%s: %+v", name, c.Permissions)
+		}
+	}
+	if rs.count() != 1 {
+		t.Fatalf("%d resolutions for one reference, want 1", rs.count())
+	}
+	if c := mustVerify(t, v, s.sign(t, refClaims(map[string]any{"perms_ref": vOtherRef}))); !c.Has("navi.admin.all") || c.Has("navi.orders.read") || rs.count() != 2 {
+		t.Fatalf("another reference is resolved on its own: %+v after %d resolutions", c.Permissions, rs.count())
+	}
+}
+
+func TestACachedReferenceIsServedWhileNICEIsDown(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: byRef}
+	v := refVerifier(t, s, rs)
+	token := s.sign(t, refClaims(nil))
+	mustVerify(t, v, token)
+	rs.set(down)
+	if c := mustVerify(t, v, token); !c.Has("navi.orders.read") || rs.count() != 1 {
+		t.Fatalf("the cached list is served without NICE: %+v after %d resolutions", c.Permissions, rs.count())
+	}
+	if _, err := v.Verify(context.Background(), s.sign(t, refClaims(map[string]any{"perms_ref": vOtherRef}))); refusal(err).Description != ReasonPermsDown {
+		t.Fatalf("a reference that is not cached still fails closed: %v", err)
+	}
+	if c := mustVerify(t, v, s.sign(t, claims(nil))); !c.Has("navi.orders.read") {
+		t.Fatal("a token with perms does not depend on NICE")
+	}
+}
+
+func TestTheCachedListCannotBeChangedThroughTheClaims(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	v := refVerifier(t, s, &fakeResolver{answer: byRef})
+	token := s.sign(t, refClaims(nil))
+	c := mustVerify(t, v, token)
+	c.Permissions[0] = "navi.admin.all"
+	if again := mustVerify(t, v, token); again.Has("navi.admin.all") || !again.Has("navi.orders.read") {
+		t.Fatalf("a handler that changes its claims changed the cache: %v", again.Permissions)
+	}
+}
+
+func TestThePermissionCacheIsBounded(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: byRef}
+	v := refVerifier(t, s, rs, func(c *Config) { c.Permissions = NewPermissionCache(2) })
+	tokenOf := func(ref string) string { return s.sign(t, refClaims(map[string]any{"perms_ref": ref})) }
+	for _, ref := range []string{vRef, vOtherRef, vThirdRef} {
+		mustVerify(t, v, tokenOf(ref))
+	}
+	if rs.count() != 3 {
+		t.Fatalf("%d resolutions for three references", rs.count())
+	}
+	if c := mustVerify(t, v, tokenOf(vRef)); !c.Has("navi.orders.read") || rs.count() != 4 {
+		t.Fatalf("the oldest reference was evicted and is resolved again: %d resolutions", rs.count())
+	}
+	if c := mustVerify(t, v, tokenOf(vThirdRef)); !c.Has("b.x.read") || rs.count() != 4 {
+		t.Fatalf("the newest references stay: %d resolutions", rs.count())
+	}
+}
+
+func TestVerifiersShareAPermissionCache(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	rs := &fakeResolver{answer: byRef}
+	shared := NewPermissionCache(0)
+	token := s.sign(t, refClaims(nil))
+	for i := 0; i < 3; i++ {
+		v := refVerifier(t, s, rs, func(c *Config) { c.Permissions = shared })
+		if c := mustVerify(t, v, token); !c.Has("navi.orders.read") {
+			t.Fatalf("verifier %d: %+v", i, c.Permissions)
+		}
+	}
+	if rs.count() != 1 {
+		t.Fatalf("%d resolutions over three verifiers that share a cache, want 1", rs.count())
+	}
+	mustVerify(t, refVerifier(t, s, rs), token)
+	if rs.count() != 2 {
+		t.Fatalf("a verifier with a cache of its own asks on its own: %d resolutions", rs.count())
+	}
+}

@@ -52,6 +52,9 @@ type Config struct {
 	// Resolver gets the permissions of a token that carries perms_ref instead of perms; nil refuses such a token
 	// with 503. NICE issues one when the permissions would make the token too large for a header.
 	Resolver PermissionResolver
+	// Permissions keeps the resolved permission lists; nil gives the Verifier a cache of its own. Give several
+	// Verifiers the same cache to make them share what they resolved.
+	Permissions *PermissionCache
 	// Observer receives rejections and feed state; nil ignores them.
 	Observer Observer
 	// Log defaults to slog.Default().
@@ -62,11 +65,12 @@ type Config struct {
 
 // Verifier verifies NICE access tokens for one service.
 type Verifier struct {
-	cfg  Config
-	keys *keySet
-	deny *denySet
-	obs  Observer
-	feed *feedState
+	cfg   Config
+	keys  *keySet
+	deny  *denySet
+	perms *PermissionCache
+	obs   Observer
+	feed  *feedState
 	// lifetimeWarned is the unix nanoseconds of the last warning about a token that outlives TokenTTL.
 	lifetimeWarned atomic.Int64
 }
@@ -116,7 +120,10 @@ func New(cfg Config) (*Verifier, error) {
 			}
 		}
 	}
-	v := &Verifier{cfg: cfg, deny: newDenySet(cfg.TokenTTL + cfg.Skew), obs: cfg.Observer}
+	if cfg.Permissions == nil {
+		cfg.Permissions = NewPermissionCache(0)
+	}
+	v := &Verifier{cfg: cfg, deny: newDenySet(cfg.TokenTTL + cfg.Skew), perms: cfg.Permissions, obs: cfg.Observer}
 	if v.obs == nil {
 		v.obs = noObserver{}
 	}

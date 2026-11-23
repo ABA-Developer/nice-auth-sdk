@@ -256,6 +256,11 @@ func (v *Verifier) Verify(ctx context.Context, token string) (*Claims, error) {
 	if v.deny.stale(tokenVersion{iat: c.IssuedAt, org: c.OrgID, pv: c.PolicyVersion, hasPV: c.hasPV}, keys...) {
 		return nil, v.reject(invalid(ReasonStale))
 	}
+	if c.PermsRef != "" {
+		if e := v.resolvePermissions(ctx, &c); e != nil {
+			return nil, v.reject(e)
+		}
+	}
 	return &c, nil
 }
 

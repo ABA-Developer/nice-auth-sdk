@@ -49,18 +49,27 @@ func TestATokenWithPermsAndPermsRefIsMalformed(t *testing.T) {
 	}
 }
 
-// fakeResolver answers resolutions from answer and records the claims of every call.
+// fakeResolver answers resolutions from answer and records the claims of every call. With a gate it answers
+// only once the gate is closed, or gives up when the context of the call ends.
 type fakeResolver struct {
 	mu     sync.Mutex
 	calls  []Claims
 	answer func(*Claims) ([]string, bool, error)
+	gate   chan struct{}
 }
 
-func (f *fakeResolver) Resolve(_ context.Context, c *Claims) ([]string, bool, error) {
+func (f *fakeResolver) Resolve(ctx context.Context, c *Claims) ([]string, bool, error) {
 	f.mu.Lock()
 	f.calls = append(f.calls, *c)
 	answer := f.answer
 	f.mu.Unlock()
+	if f.gate != nil {
+		select {
+		case <-f.gate:
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		}
+	}
 	return answer(c)
 }
 
@@ -391,5 +400,98 @@ func TestTheMemoryOfStaleTokensIsBounded(t *testing.T) {
 	}
 	if _, err := v.Verify(context.Background(), tokens[0]); !staleRefusal(err) || rs.count() != limit+2 {
 		t.Fatalf("the token that expires first was forgotten and is asked again: %v after %d resolutions", err, rs.count())
+	}
+}
+
+// waitFor polls cond for up to two seconds.
+func waitFor(t *testing.T, what string, cond func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(2 * time.Second); time.Now().Before(deadline); time.Sleep(2 * time.Millisecond) {
+		if cond() {
+			return
+		}
+	}
+	t.Fatalf("timed out waiting for %s", what)
+}
+
+func TestConcurrentRequestsShareOneResolution(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	release := make(chan struct{})
+	rs := &fakeResolver{answer: byRef, gate: release}
+	v := refVerifier(t, s, rs)
+	token := s.sign(t, refClaims(nil))
+	const n = 50
+	var wg sync.WaitGroup
+	errs := make(chan error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c, err := v.Verify(context.Background(), token)
+			if err == nil && !c.Has("navi.orders.read") {
+				err = errors.New("verified without the resolved permissions")
+			}
+			errs <- err
+		}()
+	}
+	waitFor(t, "the first resolution", func() bool { return rs.count() >= 1 })
+	time.Sleep(100 * time.Millisecond) // let the other requests reach the resolution
+	close(release)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if rs.count() != 1 {
+		t.Fatalf("%d resolutions for %d concurrent requests, want 1", rs.count(), n)
+	}
+}
+
+func TestConcurrentPrincipalsDoNotShareAnAnswer(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	release := make(chan struct{})
+	rs := &fakeResolver{gate: release, answer: func(c *Claims) ([]string, bool, error) {
+		if c.Subject == vUser {
+			return nil, false, nil
+		}
+		return byRef(c)
+	}}
+	v := refVerifier(t, s, rs)
+	changed := s.sign(t, refClaims(nil))
+	unchanged := s.sign(t, refClaims(map[string]any{"sub": vUser2, "jti": "0192f3a4-7b1c-7d2e-9a10-000000000003"}))
+	results := map[string]chan error{changed: make(chan error, 1), unchanged: make(chan error, 1)}
+	for token, out := range results {
+		go func() { _, err := v.Verify(context.Background(), token); out <- err }()
+	}
+	waitFor(t, "both resolutions", func() bool { return rs.count() == 2 })
+	close(release)
+	if err := <-results[changed]; !staleRefusal(err) {
+		t.Fatalf("the principal whose permissions changed: %v", err)
+	}
+	if err := <-results[unchanged]; err != nil {
+		t.Fatalf("the principal whose permissions did not change is not refused with the other: %v", err)
+	}
+}
+
+func TestAWaitingRequestStopsWhenItsOwnContextEnds(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	rs := &fakeResolver{answer: byRef, gate: release}
+	v := refVerifier(t, s, rs)
+	token := s.sign(t, refClaims(nil))
+	go func() { _, _ = v.Verify(context.Background(), token) }()
+	waitFor(t, "the first resolution", func() bool { return rs.count() == 1 })
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := v.Verify(ctx, token)
+	if e := refusal(err); e.Status != 503 || e.Description != ReasonPermsDown {
+		t.Fatalf("a request that gives up waiting fails closed: %v", err)
+	}
+	if time.Since(start) > time.Second || rs.count() != 1 {
+		t.Fatalf("it waited %v and made %d resolutions", time.Since(start), rs.count())
 	}
 }

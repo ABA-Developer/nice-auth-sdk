@@ -2,6 +2,8 @@ package verify
 
 import (
 	"container/list"
+	"context"
+	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -27,7 +29,23 @@ type PermissionCache struct {
 	// same reference still names the permissions of every principal that did not change.
 	stale    map[string]int64
 	maxStale int
+	// flights are the resolutions under way, so requests that need the same one wait for it instead of asking too.
+	flights map[string]*flight
 }
+
+// resolution is the checked answer of a resolver: the list when match is set and err is nil.
+type resolution struct {
+	permissions []string
+	match       bool
+	err         error
+}
+
+type flight struct {
+	done chan struct{}
+	res  resolution
+}
+
+var errResolutionAborted = errors.New("niceauth: the permission resolution did not finish")
 
 type permissionSet struct {
 	ref         string
@@ -41,7 +59,33 @@ func NewPermissionCache(maxSets int) *PermissionCache {
 		maxSets = defaultPermissionSets
 	}
 	return &PermissionCache{max: maxSets, sets: map[string]*list.Element{}, order: list.New(),
-		stale: map[string]int64{}, maxStale: maxSets * staleTokensPerSet}
+		stale: map[string]int64{}, maxStale: maxSets * staleTokensPerSet, flights: map[string]*flight{}}
+}
+
+// once runs resolve for key, or waits for the run of the same key that is under way and returns its answer. A
+// caller that waits gives up when its own context ends.
+func (pc *PermissionCache) once(ctx context.Context, key string, resolve func() resolution) resolution {
+	pc.mu.Lock()
+	if f, ok := pc.flights[key]; ok {
+		pc.mu.Unlock()
+		select {
+		case <-f.done:
+			return f.res
+		case <-ctx.Done():
+			return resolution{err: ctx.Err()}
+		}
+	}
+	f := &flight{done: make(chan struct{}), res: resolution{err: errResolutionAborted}}
+	pc.flights[key] = f
+	pc.mu.Unlock()
+	defer func() {
+		pc.mu.Lock()
+		delete(pc.flights, key)
+		pc.mu.Unlock()
+		close(f.done)
+	}()
+	f.res = resolve()
+	return f.res
 }
 
 func (pc *PermissionCache) isStale(jti string) bool {

@@ -24,7 +24,7 @@ Each folder in [`examples/`](examples) is one `main` program for one role. Its s
 | Example | Role | What it shows |
 |---|---|---|
 | [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
-| [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, tenants |
+| [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, the permission resolver, tenants |
 | [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs` |
 | [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `Do`, `Disconnect` |
 
@@ -69,6 +69,7 @@ v, err := verify.New(verify.Config{
 	Service:  "nadi",                    // the slug of the service; a token must be for it alone
 	JWKSFile: "/var/lib/nadi/jwks.json", // the service still verifies after a restart while NICE is down
 	Checker:  verify.NewHTTPChecker("https://auth.example.com", apiKey),
+	Resolver: verify.NewHTTPResolver("https://auth.example.com", apiKey),
 })
 if err != nil {
 	log.Fatal(err)
@@ -97,6 +98,7 @@ func list(w http.ResponseWriter, r *http.Request) {
 - `Require` checks the permission in the `perms` claim.
 - `Sensitive()` adds an online check with NICE; when NICE does not answer, the request is refused with 503.
 - `StartFeed` makes a token issued before an access change refused with `token_stale`.
+- `Resolver` gets the permissions of a token that carries `perms_ref` instead of `perms`. NICE issues one when a principal holds so many permissions that they would not fit in a header. The verifier asks NICE once for each permission list and keeps it, so a handler reads `claims.Permissions` and `Require` works the same on every token. Without a resolver such a token is refused with 503, so set it in every service. It uses the API key of the access check and the feed.
 
 The full contract is in [docs/token-verification.md](docs/token-verification.md).
 

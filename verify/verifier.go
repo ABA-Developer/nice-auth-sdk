@@ -31,9 +31,9 @@ type Config struct {
 	// HTTP fetches the JWKS; default http.DefaultClient. The fetch goes through a copy that follows no redirect.
 	HTTP *http.Client
 	// AllowInsecureHTTP accepts a plain http address of NICE that is not loopback (the JWKS, the feed, the
-	// access check), for a network where TLS ends somewhere else. Without it such an address is refused: the
-	// keys could be replaced on the way and the API key would cross the network in the clear. Loopback
-	// (localhost, 127.0.0.0/8, ::1) needs no option.
+	// access check, the permission resolution), for a network where TLS ends somewhere else. Without it such an
+	// address is refused: the keys could be replaced on the way and the API key would cross the network in the
+	// clear. Loopback (localhost, 127.0.0.0/8, ::1) needs no option.
 	AllowInsecureHTTP bool
 	// Skew is the allowed clock skew, at most 60 seconds; default 60 seconds.
 	Skew time.Duration
@@ -49,6 +49,9 @@ type Config struct {
 	Tenants TenantResolver
 	// Checker answers online access checks for sensitive operations; nil refuses them with 503.
 	Checker AccessChecker
+	// Resolver gets the permissions of a token that carries perms_ref instead of perms; nil refuses such a token
+	// with 503. NICE issues one when the permissions would make the token too large for a header.
+	Resolver PermissionResolver
 	// Observer receives rejections and feed state; nil ignores them.
 	Observer Observer
 	// Log defaults to slog.Default().
@@ -104,11 +107,13 @@ func New(cfg Config) (*Verifier, error) {
 			return nil, err
 		}
 	}
-	if c, ok := cfg.Checker.(interface {
-		validate(allowInsecure bool) error
-	}); ok {
-		if err := c.validate(cfg.AllowInsecureHTTP); err != nil {
-			return nil, err
+	for _, caller := range []any{cfg.Checker, cfg.Resolver} {
+		if c, ok := caller.(interface {
+			validate(allowInsecure bool) error
+		}); ok {
+			if err := c.validate(cfg.AllowInsecureHTTP); err != nil {
+				return nil, err
+			}
 		}
 	}
 	v := &Verifier{cfg: cfg, deny: newDenySet(cfg.TokenTTL + cfg.Skew), obs: cfg.Observer}

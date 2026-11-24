@@ -137,24 +137,21 @@ func TestContextsReadsEveryPageInOrder(t *testing.T) {
 	}
 }
 
-func TestContextsCarriesActAsTruncationAndOrganizationServices(t *testing.T) {
+func TestContextsCarriesActAsAndTruncation(t *testing.T) {
 	f, x, sub := newFakeContexts(t)
 	f.page = func(w http.ResponseWriter, r *http.Request, n int) {
 		operated := orgJSON("org_op")
 		operated["act_as"] = true
 		big := orgJSON("org_big", "prj_1")
 		big["projects_truncated"] = true
-		tenancy := orgJSON("org_t")
-		tenancy["services"] = []string{"nadi"}
-		writeJSON(w, http.StatusOK, map[string]any{"current_organization_id": "org_big", "organizations": []any{big, operated, tenancy}})
+		writeJSON(w, http.StatusOK, map[string]any{"current_organization_id": "org_big", "organizations": []any{big, operated}})
 	}
 	got, err := x.Contexts(context.Background(), sub)
 	if err != nil {
 		t.Fatal(err)
 	}
 	o := got.Organizations
-	if len(o) != 3 || o[0].ActAs || !o[0].ProjectsTruncated || !o[1].ActAs || o[1].ProjectsTruncated ||
-		!reflect.DeepEqual(o[2].Services, []string{"nadi"}) || o[0].Services != nil {
+	if len(o) != 2 || o[0].ActAs || !o[0].ProjectsTruncated || !o[1].ActAs || o[1].ProjectsTruncated {
 		t.Fatalf("organizations %+v", o)
 	}
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ExchangeClient.Contexts` lists the organizations and projects of the user of a subject token from `GET /api/v1/me/contexts`, with the services of each project, and `act_as` and `projects_truncated` of each organization. It reads every page (at most 100, each body at most 4 MiB) and returns an error and no list beyond the bounds. The delegated token of the NICE API is kept per subject token and exchanged once more on `token_stale`, as for `DoAs`. Use it with the sign-in token of `Client.SignInToken` or with the token of a request.
+- `APIError` (`Status`, `Code`, `Message`, `RequestID`) for an answer of the NICE API other than 2xx. A 5xx or 429 comes wrapped in a `TemporaryError`, so `IsTemporary` holds and `errors.As` still finds the `APIError`. Its message never holds a token or the raw body.
+
 ## v0.2.0
 
 ### Added
@@ -10,11 +17,6 @@
 - The shared vectors are version 3: six `perms_ref` vectors with the answer of the resolution in `resolve`, and `perms_refs`, permission lists with the reference to compute.
 
 Set `Config.Resolver` in every service before NICE issues such tokens. A verifier of this version without a resolver refuses a `perms_ref` token with `503 permissions_unavailable`; an older verifier reads it as a token without permissions and answers `403`. When NICE says the reference no longer matches (the permissions changed since the token was issued), the answer is `401 token_stale` and the client renews its token. A token that carries both `perms` and `perms_ref` is refused as `malformed`.
-
-### Added
-
-- `ExchangeClient.Contexts` lists the organizations and projects of the user of a subject token from `GET /api/v1/me/contexts`, with the services of each project, `act_as` and `projects_truncated` of each organization, and the services of an organization once NICE sends them. It reads every page (at most 100, each body at most 4 MiB) and returns an error and no list beyond the bounds. The delegated token of the NICE API is kept per subject token and exchanged once more on `token_stale`, as for `DoAs`. Use it with the sign-in token of `Client.SignInToken` or with the token of a request.
-- `APIError` (`Status`, `Code`, `Message`, `RequestID`) for an answer of the NICE API other than 2xx. A 5xx or 429 comes wrapped in a `TemporaryError`, so `IsTemporary` holds and `errors.As` still finds the `APIError`. Its message never holds a token or the raw body.
 
 ### Security
 

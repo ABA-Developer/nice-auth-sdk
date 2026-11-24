@@ -37,10 +37,7 @@ type ContextOrganization struct {
 	Name string
 	Slug string
 	// ActAs is true for an organization a platform operator may act as without being a member of it.
-	ActAs bool
-	// Services are the services the user may use in the organization itself, without a project (organization
-	// tenancy). Empty until NICE sends it.
-	Services []string
+	ActAs    bool
 	Projects []ContextProject
 	// ProjectsTruncated is true when NICE listed only part of the projects of the organization.
 	ProjectsTruncated bool
@@ -58,11 +55,10 @@ type contextsPage struct {
 	CurrentOrganizationID string   `json:"current_organization_id"`
 	Services              []string `json:"services"`
 	Organizations         []struct {
-		ID       string   `json:"id"`
-		Name     string   `json:"name"`
-		Slug     string   `json:"slug"`
-		ActAs    bool     `json:"act_as"`
-		Services []string `json:"services"`
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Slug     string `json:"slug"`
+		ActAs    bool   `json:"act_as"`
 		Projects []struct {
 			ID       string   `json:"id"`
 			Name     string   `json:"name"`
@@ -99,7 +95,7 @@ func (x *ExchangeClient) Contexts(ctx context.Context, subjectToken string) (Con
 			out.CurrentOrganization, out.Services = p.CurrentOrganizationID, p.Services
 		}
 		for _, o := range p.Organizations {
-			org := ContextOrganization{ID: o.ID, Name: o.Name, Slug: o.Slug, ActAs: o.ActAs, Services: o.Services,
+			org := ContextOrganization{ID: o.ID, Name: o.Name, Slug: o.Slug, ActAs: o.ActAs,
 				ProjectsTruncated: o.ProjectsTruncated}
 			for _, pr := range o.Projects {
 				org.Projects = append(org.Projects, ContextProject{ID: pr.ID, Name: pr.Name, Slug: pr.Slug, Services: pr.Services})

@@ -118,7 +118,7 @@ resp, err := x.DoAs(ctx, userToken, credentials.Key{Audience: "inventaris"}, req
 
 ## Choosing an organization and a project
 
-A token for a service names one organization and, for most services, one project. Before the user has picked them, the backend lists where the user may work with `ExchangeClient.Contexts`. It exchanges a user token for a delegated token of the NICE API (`Key{Audience: "nice"}`), reads every page of `GET /api/v1/me/contexts`, and returns the organizations in the order NICE gives them, each with its projects and the services the user may use in each.
+A token for a service names one organization and one project. Before the user has picked them, the backend lists where the user may work with `ExchangeClient.Contexts`. It exchanges a user token for a delegated token of the NICE API (`Key{Audience: "nice"}`), reads every page of `GET /api/v1/me/contexts`, and returns the organizations in the order NICE gives them, each with its projects and the services the user may use in each.
 
 A web backend that keeps the refresh token (`KindBFF`) does it right after the sign-in. The `ExchangeClient` uses the same service client as the `Client`:
 
@@ -144,8 +144,7 @@ The backend of a service passes the token of the request it serves, after verify
 contexts, err := x.Contexts(ctx, userToken)
 ```
 
-- **`Project` is required** for a service with `project` tenancy: NICE refuses a token for it without a project (`invalid_scope`). Offer the projects whose `Services` hold the slug of the service.
-- **`Project` may be empty** for a service with `organization` tenancy, which is coming in NICE. Such an organization lists the slug in `ContextOrganization.Services`, which stays empty until NICE sends it.
+- **`Project` is required** for the token of a service: NICE refuses it without a project (`invalid_scope`). Offer the projects whose `Services` hold the slug of the service.
 - **A SPA (public client) cannot use `Contexts`.** The exchange needs the secret of a confidential service client. A SPA picks the context by hand or asks a backend (BFF) that holds the secret.
 
 [`examples/connect`](examples/connect/main.go) shows the whole flow with a picker.

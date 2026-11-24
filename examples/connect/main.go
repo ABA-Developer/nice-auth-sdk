@@ -213,7 +213,6 @@ type pickerOrg struct {
 	Name, ID  string
 	ActAs     bool
 	Truncated bool
-	OrgLevel  bool // the service is used in the organization itself (organization tenancy)
 	Projects  []credentials.ContextProject
 }
 
@@ -221,13 +220,13 @@ type pickerOrg struct {
 func picker(contexts credentials.Contexts, slug string) []pickerOrg {
 	var out []pickerOrg
 	for _, o := range contexts.Organizations {
-		po := pickerOrg{Name: o.Name, ID: o.ID, ActAs: o.ActAs, Truncated: o.ProjectsTruncated, OrgLevel: slices.Contains(o.Services, slug)}
+		po := pickerOrg{Name: o.Name, ID: o.ID, ActAs: o.ActAs, Truncated: o.ProjectsTruncated}
 		for _, p := range o.Projects {
 			if slices.Contains(p.Services, slug) {
 				po.Projects = append(po.Projects, p)
 			}
 		}
-		if po.OrgLevel || len(po.Projects) > 0 {
+		if len(po.Projects) > 0 {
 			out = append(out, po)
 		}
 	}
@@ -240,7 +239,6 @@ var pickerPage = template.Must(template.New("picker").Parse(`<!doctype html>
 <h1>Where do you work?</h1>
 {{range .}}<h2>{{.Name}}{{if .ActAs}} (acting as operator){{end}}</h2>
 <ul>
-{{if .OrgLevel}}<li><a href="/choose?org={{.ID}}">the whole organization</a></li>{{end}}
 {{$org := .ID}}{{range .Projects}}<li><a href="/choose?org={{$org}}&amp;project={{.ID}}">{{.Name}}</a></li>
 {{end}}{{if .Truncated}}<li>more projects exist than NICE listed</li>{{end}}
 </ul>

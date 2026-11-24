@@ -32,8 +32,9 @@ type Config struct {
 	HTTP *http.Client
 	// AllowInsecureHTTP accepts a plain http address of NICE that is not loopback (the JWKS, the feed, the
 	// access check, the permission resolution), for a network where TLS ends somewhere else. Without it such an
-	// address is refused: the keys could be replaced on the way and the API key would cross the network in the
-	// clear. Loopback (localhost, 127.0.0.0/8, ::1) needs no option.
+	// address is refused: the keys could be replaced on the way and the token of a caller, which the access check
+	// and the permission resolution forward, would cross the network in the clear. Loopback (localhost,
+	// 127.0.0.0/8, ::1) needs no option.
 	AllowInsecureHTTP bool
 	// Skew is the allowed clock skew, at most 60 seconds; default 60 seconds.
 	Skew time.Duration
@@ -254,17 +255,20 @@ func (v *Verifier) Verify(ctx context.Context, token string) (*Claims, error) {
 		v.warnLifetime(now, life, c.IssuedAt == 0)
 		return nil, v.reject(invalid(ReasonLifetime))
 	}
-	keys := []denyKey{{key: "p:" + c.Subject + "|" + c.OrgID}, {key: "o:" + c.OrgID}}
+	orgKey := FeedKey("o", c.OrgID)
+	keys := []denyKey{{key: FeedKey("p", c.Subject, c.OrgID)}, {key: orgKey}}
 	if c.ProjectID != "" {
-		keys = append(keys, denyKey{key: "j:" + c.ProjectID})
+		keys = append(keys, denyKey{key: FeedKey("j", c.ProjectID)})
 	}
 	if c.ActAs != "" {
 		// The right of an operator is decided in the organization nice_act_as names, so a change there ends the token.
-		keys = append(keys, denyKey{key: "p:" + c.Subject + "|" + c.ActAs, actAs: true})
+		keys = append(keys, denyKey{key: FeedKey("p", c.Subject, c.ActAs), actAs: true})
 	}
-	if v.deny.stale(tokenVersion{iat: c.IssuedAt, org: c.OrgID, pv: c.PolicyVersion, hasPV: c.hasPV}, keys...) {
+	if v.deny.stale(tokenVersion{iat: c.IssuedAt, org: orgKey, pv: c.PolicyVersion, hasPV: c.hasPV}, keys...) {
 		return nil, v.reject(invalid(ReasonStale))
 	}
+	// The access check and the permission resolution forward the token to NICE, which reads the principal from it.
+	c.token = &token
 	if c.PermsRef != "" {
 		if e := v.resolvePermissions(ctx, &c); e != nil {
 			return nil, v.reject(e)

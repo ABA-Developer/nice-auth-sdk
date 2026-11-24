@@ -18,16 +18,16 @@ func Example() {
 		JWKSFile: "/var/lib/navi/jwks.json", // so a restart while NICE is down still verifies
 		// The service decides how an organization becomes a tenant: here, created on first use.
 		Tenants: verify.ProvisionOnFirstUse(func(ctx context.Context, org string) error { return createTenant(ctx, org) }),
-		// Operations declared x-nice-sensitive are checked online.
-		Checker: verify.NewHTTPChecker("https://auth.example.com", "nice_sk_reader.key"),
+		// Operations declared x-nice-sensitive are checked online, with the token of the request.
+		Checker: verify.NewHTTPChecker("https://auth.example.com"),
 		// A token too large to carry its permissions carries their reference; the verifier asks NICE once per list.
-		Resolver: verify.NewHTTPResolver("https://auth.example.com", "nice_sk_reader.key"),
+		Resolver: verify.NewHTTPResolver("https://auth.example.com"),
 	})
 	if err != nil {
 		panic(err)
 	}
-	go v.Run(ctx) // refresh the JWKS
-	if err := v.StartFeed(ctx, verify.FeedConfig{APIKey: "nice_sk_reader.key"}); err != nil {
+	go v.Run(ctx)                                                 // refresh the JWKS
+	if err := v.StartFeed(ctx, verify.FeedConfig{}); err != nil { // the feed needs no credential
 		panic(err)
 	}
 

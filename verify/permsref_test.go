@@ -33,3 +33,24 @@ func TestPermsRefLeavesItsArgumentAsItIs(t *testing.T) {
 		t.Fatalf("the caller's slice was reordered: %v", perms)
 	}
 }
+
+// The feed keys are shared with NICE, which computes them for the changes it records. The expected values were
+// computed outside Go, like those of PermsRef.
+func TestFeedKeyIsTheHashOfTheLinesInTheirOrder(t *testing.T) {
+	for _, tc := range []struct {
+		lines []string
+		want  string
+	}{
+		{[]string{"p", "usr_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c10", "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"}, "v1.o2wpt4uj_fNkyq1KCM2mGFWNvlp4G9--DmBt-_kzktE"},
+		{[]string{"j", "prj_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c12"}, "v1.ofVCIXIg8asiIqlR6lDvutW9v_N3qYBhHsbdWChMUoQ"},
+		{[]string{"o", "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"}, "v1.h27C0cLZW2fvgYGA2awA6fJRWqF7Aylf5CsoVlvXPlY"},
+	} {
+		if got := verify.FeedKey(tc.lines...); got != tc.want {
+			t.Errorf("FeedKey(%q) = %q, want %q", tc.lines, got, tc.want)
+		}
+	}
+	org := "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"
+	if verify.FeedKey("o", org) == verify.FeedKey(org, "o") {
+		t.Error("the order of the lines is part of the key")
+	}
+}

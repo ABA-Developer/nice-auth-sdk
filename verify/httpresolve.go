@@ -1,7 +1,6 @@
 package verify
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +16,6 @@ const maxResolutionBytes = 1 << 20
 // of NICE.
 type HTTPResolver struct {
 	url      string
-	apiKey   string
 	timeout  time.Duration
 	client   *http.Client
 	insecure bool
@@ -25,14 +23,13 @@ type HTTPResolver struct {
 
 var _ PermissionResolver = (*HTTPResolver)(nil)
 
-// NewHTTPResolver returns a resolver for the NICE at baseURL, authenticated with the API key of a Service
-// Account that holds the nice.service role (permission nice.platform.access.check): the key of the access
-// check and of the feed. baseURL must be https; plain http is accepted for loopback, with WithInsecureHTTP, or
-// with Config.AllowInsecureHTTP of the Verifier. An address that is not accepted makes New of the Verifier
-// fail, and every Resolve an error, so the key is never sent to it.
-func NewHTTPResolver(baseURL, apiKey string) *HTTPResolver {
-	return &HTTPResolver{url: strings.TrimRight(baseURL, "/") + "/api/v1/permission-resolutions", apiKey: apiKey,
-		timeout: 3 * time.Second, client: &http.Client{}}
+// NewHTTPResolver returns a resolver for the NICE at baseURL. It holds no credential: a resolution forwards the
+// token that carries the perms_ref as its Bearer credential, and NICE reads the principal, the organization, the
+// project, the service, nice_act_as and perms_ref from it. baseURL must be https; plain http is accepted for
+// loopback, with WithInsecureHTTP, or with Config.AllowInsecureHTTP of the Verifier. An address that is not
+// accepted makes New of the Verifier fail, and every Resolve an error, so the token is never sent to it.
+func NewHTTPResolver(baseURL string) *HTTPResolver {
+	return &HTTPResolver{url: strings.TrimRight(baseURL, "/") + "/api/v1/permission-resolutions", timeout: 3 * time.Second, client: &http.Client{}}
 }
 
 // WithTimeout changes the time a resolution may take; the default is three seconds.
@@ -55,58 +52,41 @@ func (r *HTTPResolver) validate(allowInsecure bool) error {
 	return checkURL("the address of the permission resolution", r.url, r.insecure)
 }
 
-// String names the resolver without its API key.
+// String names the resolver by its address.
 func (r *HTTPResolver) String() string {
 	if r == nil {
 		return "verify.HTTPResolver(nil)"
 	}
-	return fmt.Sprintf("verify.HTTPResolver{URL:%q APIKey:%s}", r.url, redacted(r.apiKey))
+	return fmt.Sprintf("verify.HTTPResolver{URL:%q}", r.url)
 }
 
 // GoString is String.
 func (r *HTTPResolver) GoString() string { return r.String() }
-
-type resolveRequest struct {
-	PrincipalType  string `json:"principal_type"`
-	PrincipalID    string `json:"principal_id"`
-	OrganizationID string `json:"organization_id"`
-	ProjectID      string `json:"project_id"`
-	Service        string `json:"service"`
-	ActAs          bool   `json:"act_as,omitempty"`
-	PermsRef       string `json:"perms_ref"`
-}
 
 type resolveResponse struct {
 	Match       bool     `json:"match"`
 	Permissions []string `json:"permissions"`
 }
 
-// Resolve implements PermissionResolver. Any error, including a timeout or a non-200 answer, means the answer
-// could not be had; the request is then refused with 503. The key is never part of an error.
+// Resolve implements PermissionResolver. claims must come from Verify, which keeps the token to forward; other
+// Claims are an error. Any error, including a timeout or a non-200 answer (a 401 too), means the answer could
+// not be had; the request is then refused with 503. The token is never part of an error.
 func (r *HTTPResolver) Resolve(ctx context.Context, claims *Claims) ([]string, bool, error) {
 	if err := r.validate(false); err != nil {
 		return nil, false, err
 	}
+	token := claims.rawToken()
+	if token == "" {
+		return nil, false, errNoToken
+	}
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
-	typ := "PRINCIPAL_TYPE_USER"
-	if claims.IsServiceAccount() {
-		typ = "PRINCIPAL_TYPE_SERVICE_ACCOUNT"
-	}
-	service := ""
-	if len(claims.Audience) == 1 {
-		service = claims.Audience[0]
-	}
-	body, err := json.Marshal(resolveRequest{PrincipalType: typ, PrincipalID: claims.Subject, OrganizationID: claims.OrgID,
-		ProjectID: claims.ProjectID, Service: service, ActAs: claims.IsActAs(), PermsRef: claims.PermsRef})
+	// The body is an empty object: NICE takes everything from the forwarded token.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.url, strings.NewReader("{}"))
 	if err != nil {
 		return nil, false, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.url, bytes.NewReader(body))
-	if err != nil {
-		return nil, false, err
-	}
-	req.Header.Set("Authorization", "ApiKey "+r.apiKey)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := noRedirect(r.client).Do(req)
 	if err != nil {

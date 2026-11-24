@@ -102,29 +102,29 @@ func redirecting(t *testing.T, status int, target string) *httptest.Server {
 	return srv
 }
 
-func TestTheFeedAndTheAccessCheckDoNotSendTheKeyOverPlainHTTP(t *testing.T) {
+func TestTheFeedAndTheAccessCheckDoNotUsePlainHTTP(t *testing.T) {
 	v, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := v.StartFeed(context.Background(), FeedConfig{BaseURL: "http://nice.internal:8080", APIKey: "reader-key"}); err == nil {
-		t.Fatal("a feed over plain http that is not loopback does not start")
+	if err := v.StartFeed(context.Background(), FeedConfig{BaseURL: "http://nice.internal:8080"}); err == nil {
+		t.Fatal("a feed over plain http that is not loopback does not start: its changes could be forged on the way")
 	}
 	if v.feed != nil {
 		t.Fatal("nothing was started")
 	}
-	insecure := NewHTTPChecker("http://nice.internal:8080", "reader-key")
+	insecure := NewHTTPChecker("http://nice.internal:8080")
 	if _, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t), Checker: insecure}); err == nil {
 		t.Fatal("a Verifier with such a checker is not built")
 	}
-	if ok, err := insecure.Check(context.Background(), &Claims{Subject: "usr_1"}, "navi.orders.read"); err == nil || ok {
-		t.Fatalf("a check on its own fails closed: %v %v", ok, err)
+	if ok, err := insecure.Check(context.Background(), ClaimsWithToken(Claims{Subject: "usr_1"}, "the-token"), "navi.orders.read"); err == nil || ok {
+		t.Fatalf("a check on its own fails closed and does not send the token: %v %v", ok, err)
 	}
 	// The explicit option, on the checker or on the Verifier, accepts it.
-	if _, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t), Checker: NewHTTPChecker("http://nice.internal:8080", "k").WithInsecureHTTP()}); err != nil {
+	if _, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t), Checker: NewHTTPChecker("http://nice.internal:8080").WithInsecureHTTP()}); err != nil {
 		t.Fatalf("WithInsecureHTTP: %v", err)
 	}
-	if _, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t), Checker: NewHTTPChecker("http://nice.internal:8080", "k"), AllowInsecureHTTP: true}); err != nil {
+	if _, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t), Checker: NewHTTPChecker("http://nice.internal:8080"), AllowInsecureHTTP: true}); err != nil {
 		t.Fatalf("AllowInsecureHTTP: %v", err)
 	}
 }
@@ -159,7 +159,7 @@ func TestTheFeedAndTheAccessCheckDoNotFollowARedirect(t *testing.T) {
 	v := liveVerifier(t, testSigner(t, "k1"), nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	if err := v.StartFeed(ctx, FeedConfig{BaseURL: moved.URL, APIKey: "reader-key", Wait: time.Second, MinBackoff: 10 * time.Millisecond, MaxBackoff: 20 * time.Millisecond}); err != nil {
+	if err := v.StartFeed(ctx, FeedConfig{BaseURL: moved.URL, Wait: time.Second, MinBackoff: 10 * time.Millisecond, MaxBackoff: 20 * time.Millisecond}); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(150 * time.Millisecond) // the replay and a few retries
@@ -167,27 +167,57 @@ func TestTheFeedAndTheAccessCheckDoNotFollowARedirect(t *testing.T) {
 		t.Fatalf("the feed is not read from the redirect target: %d requests", trap.hits())
 	}
 
-	ok, err := NewHTTPChecker(moved.URL, "reader-key").Check(context.Background(), &Claims{Subject: "usr_1"}, "navi.orders.read")
+	ok, err := NewHTTPChecker(moved.URL).Check(context.Background(), ClaimsWithToken(Claims{Subject: "usr_1"}, "the-token"), "navi.orders.read")
 	if err == nil || ok || trap.hits() != 0 {
-		t.Fatalf("a redirected check is an error and the key is not sent on: %v %v, %d requests", ok, err, trap.hits())
+		t.Fatalf("a redirected check is an error and the token is not sent on: %v %v, %d requests", ok, err, trap.hits())
 	}
 }
 
-func TestTheAPIKeyIsNotPrinted(t *testing.T) {
-	const secret = "nice_sk_reader.very-secret-value"
-	fc := FeedConfig{BaseURL: "https://auth.example.com", APIKey: secret}
-	ch := NewHTTPChecker("https://auth.example.com", secret)
+func TestTheCallersOfNICEPrintTheirAddress(t *testing.T) {
+	fc := FeedConfig{BaseURL: "https://auth.example.com", Wait: 25 * time.Second}
+	ch := NewHTTPChecker("https://auth.example.com")
+	rs := NewHTTPResolver("https://auth.example.com")
 	type holder struct{ Feed FeedConfig }
-	for name, v := range map[string]any{"FeedConfig": fc, "*FeedConfig": &fc, "*HTTPChecker": ch, "a struct that holds it": holder{fc}} {
+	for name, v := range map[string]any{"FeedConfig": fc, "*FeedConfig": &fc, "*HTTPChecker": ch, "*HTTPResolver": rs, "a struct that holds it": holder{fc}} {
 		var b bytes.Buffer
 		slog.New(slog.NewJSONHandler(&b, nil)).Info("value", slog.Any("v", v))
 		slog.New(slog.NewTextHandler(&b, nil)).Info("value", slog.Any("v", v))
 		out := fmt.Sprintf("%v|%+v|%#v|%s|", v, v, v, v) + b.String()
-		if strings.Contains(out, secret) {
-			t.Errorf("%s shows the API key: %s", name, out)
-		}
 		if !strings.Contains(out, "auth.example.com") {
-			t.Errorf("%s still names the address: %s", name, out)
+			t.Errorf("%s names the address: %s", name, out)
+		}
+	}
+}
+
+// The claims a handler gets hold the token Verify read them from, for the callers of NICE to forward. A handler
+// that prints or logs its claims must not show it.
+func TestTheTokenInTheClaimsIsNotPrinted(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	v := fixedVerifier(t, s, 30*time.Minute, vectorNow, nil)
+	tok := s.sign(t, claims(nil))
+	c, err := v.Verify(context.Background(), tok)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.rawToken() != tok {
+		t.Fatal("Verify keeps the token it read the claims from")
+	}
+	signature := tok[strings.LastIndex(tok, ".")+1:]
+	type holder struct{ Claims *Claims }
+	for name, val := range map[string]any{"*Claims": c, "Claims": *c, "a struct that holds it": holder{c}} {
+		var b bytes.Buffer
+		slog.New(slog.NewJSONHandler(&b, nil)).Info("value", slog.Any("v", val))
+		slog.New(slog.NewTextHandler(&b, nil)).Info("value", slog.Any("v", val))
+		js, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := fmt.Sprintf("%v|%+v|%#v|%s|", val, val, val, val) + string(js) + b.String()
+		if strings.Contains(out, signature) {
+			t.Errorf("%s shows the token: %s", name, out)
+		}
+		if !strings.Contains(out, vUser) {
+			t.Errorf("%s still shows the claims: %s", name, out)
 		}
 	}
 }

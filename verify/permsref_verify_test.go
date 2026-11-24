@@ -192,7 +192,7 @@ func TestATokenThatIsNotValidIsNotResolved(t *testing.T) {
 	s, other := testSigner(t, "vector-key-1"), testSigner(t, "vector-key-1")
 	rs := &fakeResolver{answer: matching(vRefPerms...)}
 	v := refVerifier(t, s, rs)
-	v.deny.mark("p:"+vUser+"|"+vOrg2, vOrg2, 0, vectorNow(), vectorNow())
+	v.deny.mark(FeedKey("p", vUser, vOrg2), FeedKey("o", vOrg2), 0, vectorNow(), vectorNow())
 	for name, token := range map[string]string{
 		"bad signature":  other.sign(t, refClaims(nil)),
 		"expired":        s.sign(t, refClaims(map[string]any{"exp": vNow - 61})),

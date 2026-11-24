@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -14,7 +15,6 @@ import (
 // public address of NICE.
 type HTTPChecker struct {
 	url      string
-	apiKey   string
 	timeout  time.Duration
 	client   *http.Client
 	insecure bool
@@ -22,15 +22,18 @@ type HTTPChecker struct {
 
 var _ AccessChecker = (*HTTPChecker)(nil)
 
-// NewHTTPChecker returns a checker for the NICE at baseURL, authenticated with
-// the API key of a Service Account that holds the nice.service role
-// (permission nice.platform.access.check). baseURL must be https; plain http is
-// accepted for loopback, with WithInsecureHTTP, or with Config.AllowInsecureHTTP
-// of the Verifier. An address that is not accepted makes New of the Verifier
-// fail, and every Check an error, so the key is never sent to it.
-func NewHTTPChecker(baseURL, apiKey string) *HTTPChecker {
-	return &HTTPChecker{url: strings.TrimRight(baseURL, "/") + "/api/v1/access-checks", apiKey: apiKey,
-		timeout: 3 * time.Second, client: &http.Client{}}
+// errNoToken is the error of a check or a resolution of Claims that did not come from Verify.
+var errNoToken = errors.New("niceauth: the claims carry no token to forward to NICE; only Claims returned by Verify can be checked or resolved")
+
+// NewHTTPChecker returns a checker for the NICE at baseURL. It holds no
+// credential: a check forwards the token of the request as its Bearer
+// credential, and NICE reads the principal, the organization, the project and
+// nice_act_as from it. baseURL must be https; plain http is accepted for
+// loopback, with WithInsecureHTTP, or with Config.AllowInsecureHTTP of the
+// Verifier. An address that is not accepted makes New of the Verifier fail,
+// and every Check an error, so the token is never sent to it.
+func NewHTTPChecker(baseURL string) *HTTPChecker {
+	return &HTTPChecker{url: strings.TrimRight(baseURL, "/") + "/api/v1/access-checks", timeout: 3 * time.Second, client: &http.Client{}}
 }
 
 // WithTimeout changes the time a check may take; the default is three seconds.
@@ -54,45 +57,41 @@ func (c *HTTPChecker) validate(allowInsecure bool) error {
 	return checkURL("the address of the access check", c.url, c.insecure)
 }
 
-// String names the checker without its API key.
+// String names the checker by its address.
 func (c *HTTPChecker) String() string {
 	if c == nil {
 		return "verify.HTTPChecker(nil)"
 	}
-	return fmt.Sprintf("verify.HTTPChecker{URL:%q APIKey:%s}", c.url, redacted(c.apiKey))
+	return fmt.Sprintf("verify.HTTPChecker{URL:%q}", c.url)
 }
 
 // GoString is String.
 func (c *HTTPChecker) GoString() string { return c.String() }
 
+// checkRequest is the whole body of a check: NICE takes everything else from the forwarded token.
 type checkRequest struct {
-	PrincipalType  string `json:"principal_type"`
-	PrincipalID    string `json:"principal_id"`
-	OrganizationID string `json:"organization_id"`
-	ProjectID      string `json:"project_id,omitempty"`
-	Permission     string `json:"permission"`
-	ActAs          bool   `json:"act_as,omitempty"`
+	Permission string `json:"permission"`
 }
 
 type checkResponse struct {
 	Allowed bool `json:"allowed"`
 }
 
-// Check implements AccessChecker. Any error, including a timeout or a non-200
-// answer, means the answer could not be had; the request is then refused with
-// 503. The key is never part of an error.
+// Check implements AccessChecker. claims must come from Verify, which keeps the
+// token to forward; other Claims are an error. Any error, including a timeout or
+// a non-200 answer (a 401 too), means the answer could not be had; the request
+// is then refused with 503. The token is never part of an error.
 func (c *HTTPChecker) Check(ctx context.Context, claims *Claims, permission string) (bool, error) {
 	if err := c.validate(false); err != nil {
 		return false, err
 	}
+	token := claims.rawToken()
+	if token == "" {
+		return false, errNoToken
+	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	typ := "PRINCIPAL_TYPE_USER"
-	if claims.IsServiceAccount() {
-		typ = "PRINCIPAL_TYPE_SERVICE_ACCOUNT"
-	}
-	body, err := json.Marshal(checkRequest{PrincipalType: typ, PrincipalID: claims.Subject, OrganizationID: claims.OrgID,
-		ProjectID: claims.ProjectID, Permission: permission, ActAs: claims.IsActAs()})
+	body, err := json.Marshal(checkRequest{Permission: permission})
 	if err != nil {
 		return false, err
 	}
@@ -100,7 +99,7 @@ func (c *HTTPChecker) Check(ctx context.Context, claims *Claims, permission stri
 	if err != nil {
 		return false, err
 	}
-	req.Header.Set("Authorization", "ApiKey "+c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := noRedirect(c.client).Do(req)
 	if err != nil {

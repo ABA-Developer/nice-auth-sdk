@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "issuer": "https://auth.example.test",
   "service": "navi",
   "jwks": {
@@ -344,8 +344,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "principal_disabled",
           "occurred_at": 1793328880
         }
@@ -369,8 +369,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "principal_disabled",
           "occurred_at": 1793328100
         }
@@ -393,7 +393,8 @@
       },
       "changes": [
         {
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "org_state_changed",
           "occurred_at": 1793328880
         }
@@ -417,8 +418,8 @@
       },
       "changes": [
         {
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
-          "project_id": "prj_01a17b4d-60ec-7555-853c-3e3a50f76435",
+          "key": "v1.G4MwpqTf5l480wjcl9s1WHaAuASwFgGzVSLEFfzYDZE",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "project_state_changed",
           "occurred_at": 1793328880
         }
@@ -442,8 +443,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-3333-7000-8000-000000000003",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.f9JjKGakpnvP6mvFjdAmI2MplAxTie_wdmyU3zVT9tg",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "member_removed",
           "occurred_at": 1793328880
         }
@@ -466,8 +467,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-9999-7632-a32f-d47311c068c1",
+          "key": "v1.FTXneRGLixZDxUFOIrsUKL31VbAu3b2Ceev9QhGyCgc",
+          "org_key": "v1.fLde6JTSvFiScQkOhEB4uzod9oQA-yMsvueQ408We0Y",
           "kind": "member_removed",
           "occurred_at": 1793328880
         }
@@ -669,8 +670,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "key": "v1.GwPvO9hqEYvZ-R46dzE7sV-nZRYeuUKWgC8K-sGUJgA",
+          "org_key": "v1.766baPDKVGX4QO9AsvxgK1mBu6l_cl9ze2UfhHSUEtQ",
           "kind": "binding_deleted",
           "occurred_at": 1793328880
         }
@@ -694,8 +695,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "key": "v1.GwPvO9hqEYvZ-R46dzE7sV-nZRYeuUKWgC8K-sGUJgA",
+          "org_key": "v1.766baPDKVGX4QO9AsvxgK1mBu6l_cl9ze2UfhHSUEtQ",
           "kind": "binding_deleted",
           "occurred_at": 1793328880
         }
@@ -752,8 +753,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "binding_deleted",
           "occurred_at": 1793328400,
           "policy_version": 13
@@ -778,8 +779,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "binding_deleted",
           "occurred_at": 1793328400,
           "policy_version": 13
@@ -803,7 +804,8 @@
       },
       "changes": [
         {
-          "organization_id": "org_01a17b49-9999-7632-a32f-d47311c068c1",
+          "key": "v1.fLde6JTSvFiScQkOhEB4uzod9oQA-yMsvueQ408We0Y",
+          "org_key": "v1.fLde6JTSvFiScQkOhEB4uzod9oQA-yMsvueQ408We0Y",
           "kind": "role_changed",
           "occurred_at": 1793328400,
           "policy_version": 50
@@ -827,8 +829,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_00000000-0000-7000-8000-000000000001",
+          "key": "v1.GwPvO9hqEYvZ-R46dzE7sV-nZRYeuUKWgC8K-sGUJgA",
+          "org_key": "v1.766baPDKVGX4QO9AsvxgK1mBu6l_cl9ze2UfhHSUEtQ",
           "kind": "binding_deleted",
           "occurred_at": 1793328400,
           "policy_version": 40
@@ -853,8 +855,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "binding_deleted",
           "occurred_at": 1793328401,
           "policy_version": 13
@@ -879,8 +881,8 @@
       },
       "changes": [
         {
-          "principal_id": "usr_01a17b4e-1111-7000-8000-000000000001",
-          "organization_id": "org_01a17b49-56bc-7632-a32f-d47311c068c1",
+          "key": "v1.RlPL7apKD4NXirhRBZuHY__B-M3eUCXL2MUIUcTWhs0",
+          "org_key": "v1.9ao--ZtGzkfOVHSBRiZjlXUGIX-rSsR7s1D51DM3r1o",
           "kind": "binding_deleted",
           "occurred_at": 1793328400,
           "policy_version": 13
@@ -1048,6 +1050,30 @@
     {
       "permissions": [],
       "perms_ref": "v1.47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU"
+    }
+  ],
+  "feed_keys": [
+    {
+      "lines": [
+        "p",
+        "usr_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c10",
+        "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"
+      ],
+      "key": "v1.o2wpt4uj_fNkyq1KCM2mGFWNvlp4G9--DmBt-_kzktE"
+    },
+    {
+      "lines": [
+        "j",
+        "prj_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c12"
+      ],
+      "key": "v1.ofVCIXIg8asiIqlR6lDvutW9v_N3qYBhHsbdWChMUoQ"
+    },
+    {
+      "lines": [
+        "o",
+        "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"
+      ],
+      "key": "v1.h27C0cLZW2fvgYGA2awA6fJRWqF7Aylf5CsoVlvXPlY"
     }
   ]
 }

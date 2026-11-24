@@ -5,8 +5,9 @@ import (
 	"time"
 )
 
-// denySet holds what access changes set on a key (the principal in an organization, the organization, or the
-// project): the second of the latest change, and the highest policy version of the organization it was recorded in.
+// denySet holds what access changes set on a key (the FeedKey of the principal in an organization, the organization,
+// or the project): the second of the latest change, and the highest policy version of the organization it was
+// recorded in.
 // A token issued before is refused. Entries are kept for the lifetime of a token and then dropped, because older
 // tokens have expired by themselves.
 type denySet struct {
@@ -18,7 +19,8 @@ type denySet struct {
 type denyEntry struct {
 	// notBefore is the unix second of the latest change.
 	notBefore int64
-	// org is the organization the changes were recorded in, and pv the highest policy version they carried there.
+	// org is the org key (FeedKey "o") of the organization the changes were recorded in, and pv the highest policy
+	// version they carried there.
 	org string
 	pv  int64
 }
@@ -30,7 +32,8 @@ type denyKey struct {
 	actAs bool
 }
 
-// tokenVersion is what a token says of when it was issued: iat, its organization, and pv when it has one.
+// tokenVersion is what a token says of when it was issued: iat, the org key (FeedKey "o") of its organization, and
+// pv when it has one.
 type tokenVersion struct {
 	iat   int64
 	org   string
@@ -42,7 +45,8 @@ func newDenySet(retention time.Duration) *denySet {
 	return &denySet{retention: retention, m: map[string]denyEntry{}}
 }
 
-// mark records a change of key, recorded at at in org with policy version pv (0 when the feed gives none).
+// mark records a change of key, recorded at at in the organization of org key org with policy version pv (0 when
+// the feed gives none).
 func (d *denySet) mark(key, org string, pv int64, at, now time.Time) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

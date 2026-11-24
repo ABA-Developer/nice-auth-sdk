@@ -43,7 +43,7 @@ The order is fixed: cheap checks first, network calls last. The answer and its r
 | 5 | `aud` holds **exactly one** value, equal to the slug of the service; a multi-audience token is refused even when this slug is in it | `401`, `wrong_audience` |
 | 6 | `exp` has not passed by more than the skew; `nbf` is not more than the skew in the future. The skew is at most **60 seconds** | `401`, `expired` or `not_yet_valid` |
 | 6a | `iat` is present and `exp - iat` is at most the TTL plus the skew. A token that lives longer would outlive the deny-set entry of a change that revoked it; the TTL of the service must equal the TTL of NICE (`NICE_ACCESS_TOKEN_TTL`) | `401`, `token_lifetime_exceeded` |
-| 7 | Deny-set, for each key of the token (the principal `sub` in its org, the org, the project; for a token with `nice_act_as`, also the principal `sub` in the org `nice_act_as` names). The token is stale when **any** of these holds: `iat` is older than the second of the latest change of the key; the token has `pv`, the change was recorded in the org of the token, and `pv` is lower than the highest `policy_version` of the key; for the key in the `nice_act_as` org, `iat` is not newer than the second of the change | `401`, `token_stale` |
+| 7 | Deny-set, for each feed key of the token (see [Feed keys](#feed-keys): the principal `sub` in its org, the org, the project; for a token with `nice_act_as`, also the principal `sub` in the org `nice_act_as` names). The token is stale when **any** of these holds: `iat` is older than the second of the latest change of the key; the token has `pv`, the change was recorded in the org of the token (its `org_key` is the org key of `nice_org_id`), and `pv` is lower than the highest `policy_version` of the key; for the key in the `nice_act_as` org, `iat` is not newer than the second of the change | `401`, `token_stale` |
 | 7a | Only for a token with `perms_ref`: the permission list it names is known, from the cache or from NICE (see [Permissions by reference](#permissions-by-reference)) | `401 token_stale` when NICE says the reference no longer matches, `503 permissions_unavailable` when the list cannot be had |
 | 8 | The org is accepted by the tenant policy of the service (see below) | `403`, `org_rejected` |
 | 9 | The operation needs a permission: it must be in `perms`, or in the list `perms_ref` names | `403`, `permission_denied` |
@@ -63,22 +63,47 @@ The permission of each operation comes from `x-nice-permission` in the OpenAPI d
 
 ## Access change feed
 
-A token carries its permissions for up to 30 minutes, so an access change needs a fast path. A service reads `GET /api/v1/access-changes` (see the NICE API documentation) with the API key of a Service Account that holds the `nice.service` role:
+A token carries its permissions for up to 30 minutes, so an access change needs a fast path. A service reads `GET /api/v1/access-changes` (see the NICE API documentation) **without a credential**: the request carries no `Authorization` header. The service holds no API key and no Service Account of NICE. The feed names what changed only by keys that are hashes, so it shows no principal, project, or org to whoever reads it:
 
-- **At start**, replay from `now - (TTL + skew)`, so that a token revoked while the service was down is not accepted again.
+```json
+{ "changes": [{ "seq": "41", "kind": "binding_deleted", "key": "v1....", "org_key": "v1....",
+    "policy_version": "13", "occurred_at": "2026-10-30T10:00:00Z" }], "seq": "41" }
+```
+
+- **At start**, replay from `now - (TTL + skew)` (`since`, `limit`), so that a token revoked while the service was down is not accepted again.
 - Then keep reading with `after_seq` and `wait_seconds=25`. On failure, try again with a backoff (1 second up to 30 seconds).
-- Each change sets an entry on **one** key: the principal in that org when there is a `principal_id`, otherwise the project when there is a `project_id`, otherwise the org. The entry keeps the second of the latest change (`occurred_at`) and the highest `policy_version` with the org it was recorded in.
+- Each change sets an entry on **one** key, its `key`: the principal in an org, a project, or an org. The entry keeps the second of the latest change (`occurred_at`) and the highest `policy_version` (absent on an older NICE) with the `org_key` of the org it was recorded in.
 - `iat` has a resolution of one second, so a token issued in the same second as a change cannot be ordered by time. `policy_version` orders them: NICE raises the policy version of an org in the transaction that records each change, and puts the version it read before the permissions into `pv`. A token whose `pv` is lower than the version of the change was issued before it and is refused; one whose `pv` is equal or higher was issued after it. A token without `pv`, or a feed without `policy_version`, falls back to time alone. The act-as key compares time only (its changes are in another org than `pv`), and refuses a token of the same second, since NICE issues no act-as token once the operator role is gone.
 - Keep an entry only for the TTL plus the skew; older tokens have expired by themselves.
 - `catalog_changed` sets a `not_before` like any other entry: the catalog of a service changed (for example an operation was archived or a permission retired), and every affected principal gets an entry of its own, so its old token is refused with `token_stale` and the client gets a new one with the current `perms`.
 - The right of a platform operator (the `<slug>.operator` role) changes in the platform organization: the binding is removed, the user leaves the platform organization, or the role changes. The entry is that principal in the platform organization, and an act-as token issued earlier is refused because step 7 also checks the principal key in the `nice_act_as` org.
-- `role_changed` carries neither a `principal_id` nor a `project_id`, so it sets a `not_before` on the org: every token of that org issued earlier is refused with `token_stale`, and the client renews it with its refresh token.
+- `role_changed` has the org key as its `key`, so it sets a `not_before` on the org: every token of that org issued earlier is refused with `token_stale`, and the client renews it with its refresh token.
+
+### Feed keys
+
+A key is `v1.` followed by the SHA-256, in base64url without padding, of its lines joined by one newline (`\n`): the encoding of `perms_ref`, without sorting. NICE computes the key of each change, and a verifier computes the keys of each token, so both must give the same bytes. The lines:
+
+| Key of | Lines | For a token |
+|---|---|---|
+| a principal in an org | `p`, `<sub>`, `<org>` | `p`, `sub`, `nice_org_id`; for an act-as token also `p`, `sub`, `nice_act_as` |
+| a project | `j`, `<prj>` | `j`, `prj`, when the token has one |
+| an org | `o`, `<org>` | `o`, `nice_org_id` |
+
+`org_key` of a change is always the org key (`o`, `<org>`) of the org it was recorded in, and the verifier compares it with the org key of `nice_org_id` to decide whether `pv` orders the token against the change.
+
+| Lines | Key |
+|---|---|
+| `p`, `usr_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c10`, `org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11` | `v1.o2wpt4uj_fNkyq1KCM2mGFWNvlp4G9--DmBt-_kzktE` |
+| `j`, `prj_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c12` | `v1.ofVCIXIg8asiIqlR6lDvutW9v_N3qYBhHsbdWChMUoQ` |
+| `o`, `org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11` | `v1.h27C0cLZW2fvgYGA2awA6fJRWqF7Aylf5CsoVlvXPlY` |
+
+In `verify` the function is `FeedKey`.
 
 **Degraded mode.** When the feed has not answered for more than two `wait_seconds`, the service logs and counts it. Ordinary operations are still served, with staleness bounded by the token TTL. Sensitive operations still use the online check. A service never goes down only because the feed is cut.
 
 ## Sensitive operations
 
-An operation declared `x-nice-sensitive: true` in the OpenAPI document is checked online with NICE on every request, not only from `perms`. When the check cannot be made, the answer is `503` (fail closed). The check calls `POST /api/v1/access-checks` on the public address of NICE with the `ApiKey` of a Service Account that holds the `nice.service` role (permission `nice.platform.access.check`); the answer has `allowed`, `reason`, and `policy_version`. For a token with `nice_act_as`, the request carries `"act_as": true`, so NICE decides it from the operator role of that service, not from membership; without it, an operator who is not a member gets `allowed = false`. The Go library provides `verify.NewHTTPChecker(baseURL, apiKey)`, which sends `act_as` by itself.
+An operation declared `x-nice-sensitive: true` in the OpenAPI document is checked online with NICE on every request, not only from `perms`. When the check cannot be made, the answer is `503` (fail closed). The check calls `POST /api/v1/access-checks` on the public address of NICE with `Authorization: Bearer <token>`, the token of the request being handled, as it came, and the body `{"permission": "<name>"}` and nothing else. NICE reads the principal, the org, the project, and `nice_act_as` from the token, so an act-as token is decided from the operator role of that service, not from membership; a body with any other field is refused. The answer has `allowed`, `reason`, and `policy_version`. Any answer other than `200`, a `401` too, means the check could not be made: `503`. The Go library provides `verify.NewHTTPChecker(baseURL)`.
 
 ## Permissions by reference
 
@@ -86,14 +111,7 @@ A token must fit in an HTTP header, so NICE keeps it under 6 KB. When the permis
 
 **The reference.** `perms_ref` is `v1.` followed by the SHA-256, in base64url without padding, of the permission names sorted by byte, without duplicates, joined by one newline (`\n`). It is the hash of the content, so two principals that hold the same permissions on a service carry the same reference, in any org, and a list that hashes to the reference is the list the token was issued with. In `verify` the function is `PermsRef`.
 
-**Resolution.** A verifier that meets a reference it does not know asks NICE once: `POST /api/v1/permission-resolutions` on the public address of NICE, with the `ApiKey` of a Service Account that holds the `nice.service` role (permission `nice.platform.access.check`, the key of the access check and of the feed). The request names the principal of the verified token and the reference:
-
-```json
-{ "principal_type": "PRINCIPAL_TYPE_USER", "principal_id": "usr_...", "organization_id": "org_...",
-  "project_id": "prj_...", "service": "navi", "act_as": false, "perms_ref": "v1...." }
-```
-
-`principal_type` is `PRINCIPAL_TYPE_SERVICE_ACCOUNT` for a Service Account, `service` is `aud`, and `act_as` is `true` for a token with `nice_act_as`. NICE computes the permissions the principal holds now and answers `{"match": true, "permissions": [...]}` when their reference is the one sent, and `{"match": false}` when it is not: the permissions changed since the token was issued, or the principal lost its access (the org or project is no longer active, the membership or the Service Account is gone, the service is no longer active in the project). NICE keeps nothing about the tokens it issued.
+**Resolution.** A verifier that meets a reference it does not know asks NICE once: `POST /api/v1/permission-resolutions` on the public address of NICE, with `Authorization: Bearer <token>`, the verified token that carries the reference, and the body `{}`. NICE reads the principal, the org, the project, the service (`aud`), `nice_act_as`, and `perms_ref` from the token; a body with any field is refused. A `401`, like any answer other than `200`, means the list cannot be had. NICE computes the permissions the principal holds now and answers `{"match": true, "permissions": [...]}` when their reference is the one sent, and `{"match": false}` when it is not: the permissions changed since the token was issued, or the principal lost its access (the org or project is no longer active, the membership or the Service Account is gone, the service is no longer active in the project). NICE keeps nothing about the tokens it issued.
 
 The rules a verifier follows:
 
@@ -107,7 +125,7 @@ The rules a verifier follows:
 
 Revoking access works as for any other token: the cache holds permission lists, not decisions about a principal, and a token issued before an access change is refused by the deny-set of the feed.
 
-The Go library provides `verify.NewHTTPResolver(baseURL, apiKey)` for `Config.Resolver`. `Config.Permissions` takes a `PermissionCache` (`NewPermissionCache`), which several verifiers may share; `WithStore` puts a `PermissionStore` of the service behind its memory, to share the lists between replicas or keep them over a restart. A list from the store is used only when it hashes to the reference, so the store needs no more trust than a cache.
+The Go library provides `verify.NewHTTPResolver(baseURL)` for `Config.Resolver`. `HTTPChecker` and `HTTPResolver` take the token from the `Claims` that `Verify` returned; `Claims` built another way carry none, and the call is an error (fail closed). `Config.Permissions` takes a `PermissionCache` (`NewPermissionCache`), which several verifiers may share; `WithStore` puts a `PermissionStore` of the service behind its memory, to share the lists between replicas or keep them over a restart. A list from the store is used only when it hashes to the reference, so the store needs no more trust than a cache.
 
 ## Tenants
 
@@ -123,23 +141,26 @@ A tenant is a NICE org:
 
 ```json
 {
-  "version": 3, "issuer": "...", "service": "navi", "jwks": { "keys": [] },
+  "version": 4, "issuer": "...", "service": "navi", "jwks": { "keys": [] },
   "vectors": [{
     "name": "stale_principal", "description": "...", "token": "<jwt>", "now": 1793329000,
     "request": { "permission": "navi.orders.read", "project": "prj_...", "sensitive": false, "client_tenant": "org_..." },
-    "changes": [{ "principal_id": "usr_...", "organization_id": "org_...", "project_id": "", "kind": "principal_disabled", "occurred_at": 1792000000, "policy_version": 13 }],
+    "changes": [{ "key": "v1....", "org_key": "v1....", "kind": "principal_disabled", "occurred_at": 1792000000, "policy_version": 13 }],
     "tenant": { "policy": "allow_all | allow_list | provision", "orgs": ["org_..."] },
     "check": "allow | deny | down",
     "resolve": { "answer": "match | mismatch | down", "permissions": ["navi.orders.read"] },
     "expect": { "status": 401, "error": "invalid_token", "description": "token_stale", "tenant": "org_...", "actor": "naia-backend", "act_as": "org_..." }
   }],
-  "perms_refs": [{ "permissions": ["navi.routes.read", "navi.orders.read"], "perms_ref": "v1...." }]
+  "perms_refs": [{ "permissions": ["navi.routes.read", "navi.orders.read"], "perms_ref": "v1...." }],
+  "feed_keys": [{ "lines": ["p", "usr_...", "org_..."], "key": "v1...." }]
 }
 ```
 
 A runner builds a verifier with `iss`, `service`, the JWKS, a clock fixed at `now`, a skew of 60 seconds, and a TTL of 30 minutes; applies `changes` as if they came from the feed (`occurred_at` in Unix seconds, `policy_version` when present); sends a request with `Authorization: Bearer <token>`, plus the project and client tenant headers when there are any; and compares the status, `error`, `error_description`, and (for a 200) the tenant, the actor (`act.sub`, empty when there is none), and the `nice_act_as` (empty when there is none) that the handler sees. The vectors `valid_act_as_token` and `stale_act_as_operator` test an act-as token that is valid and one that is stale because of a change of the principal in the `nice_act_as` org. Version 2 adds the lifetime check (`lifetime_exceeds_ttl`, `missing_iat`) and the policy version (`stale_same_second_by_policy_version`, `issued_after_change_same_second`, `policy_version_other_org`, `stale_act_as_same_second`, `stale_without_pv`, `same_second_without_pv`).
 
 Version 3 adds the permissions by reference. A vector with `resolve` runs with a resolver that gives that answer to the resolution of `perms_ref`: `match` answers with `permissions`, whatever their reference is, `mismatch` answers that the reference does not match, and `down` cannot be reached; a vector without `resolve` runs without a resolver. The vectors are `perms_ref_resolved`, `perms_ref_permission_missing`, `perms_ref_mismatch`, `perms_ref_resolution_down`, `perms_ref_other_list`, and `perms_and_perms_ref`. `perms_refs` holds permission lists with the reference an implementation must compute for each, which checks the order, the duplicates, and the encoding.
+
+Version 4 gives the changes in the shape of the feed: `key` and `org_key` (see [Feed keys](#feed-keys)) in place of `principal_id`, `organization_id`, and `project_id`. A runner applies them as they are, so a vector passes only when the implementation computes the keys of the token the way NICE computes the keys of the change. `feed_keys` holds lines with the key an implementation must compute for them. The vectors and their answers are those of version 3.
 
 A new implementation must pass **every** vector before it is integrated.
 

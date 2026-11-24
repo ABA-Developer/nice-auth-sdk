@@ -33,13 +33,15 @@ func TestSecretsAreNotPrinted(t *testing.T) {
 	}
 	tok := Token{Access: secret, IssuedAt: clk.now(), ExpiresAt: clk.now().Add(30 * time.Minute)}
 	pend := Pending{Verifier: secret, Subject: "user-1", RedirectURI: "https://app.example.com/cb", Expires: clk.now()}
+	conn := Connection{Subject: "user-1", NiceSubject: "usr_1", IDToken: secret}
+	end := EndSessionRequest{PostLogoutRedirectURI: "https://app.example.com/out", IDTokenHint: secret}
 	type holder struct {
 		Config   Config
 		Exchange ExchangeConfig
 	}
 	for name, v := range map[string]any{
 		"Config": cfg, "*Config": &cfg, "ExchangeConfig": xcfg, "*ExchangeConfig": &xcfg, "Token": tok, "*Token": &tok,
-		"Pending": pend, "*Client": c, "*ExchangeClient": x, "a struct that holds the configs": holder{cfg, xcfg},
+		"Pending": pend, "Connection": conn, "*Connection": &conn, "EndSessionRequest": end, "*Client": c, "*ExchangeClient": x, "a struct that holds the configs": holder{cfg, xcfg},
 	} {
 		if out := shown(v); strings.Contains(out, secret) {
 			t.Errorf("%s shows the secret: %s", name, out)

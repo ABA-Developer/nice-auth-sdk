@@ -92,3 +92,30 @@ func (x *ExchangeClient) String() string {
 
 // GoString is String.
 func (x *ExchangeClient) GoString() string { return x.String() }
+
+// String shows the Connection without the ID token, which names the user.
+func (c Connection) String() string {
+	return fmt.Sprintf("credentials.Connection{Subject:%q NiceSubject:%q IDToken:%s}", c.Subject, c.NiceSubject, redacted(c.IDToken))
+}
+
+// GoString is String.
+func (c Connection) GoString() string { return c.String() }
+
+// LogValue keeps the ID token out of structured logs.
+func (c Connection) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("subject", c.Subject), slog.String("nice_subject", c.NiceSubject), slog.String("id_token", redacted(c.IDToken)))
+}
+
+// String shows the EndSessionRequest without the ID token hint.
+func (r EndSessionRequest) String() string {
+	return fmt.Sprintf("credentials.EndSessionRequest{PostLogoutRedirectURI:%q State:%q IDTokenHint:%s}", r.PostLogoutRedirectURI, r.State, redacted(r.IDTokenHint))
+}
+
+// GoString is String.
+func (r EndSessionRequest) GoString() string { return r.String() }
+
+// LogValue keeps the ID token hint out of structured logs.
+func (r EndSessionRequest) LogValue() slog.Value {
+	return slog.GroupValue(slog.String("post_logout_redirect_uri", r.PostLogoutRedirectURI), slog.String("state", r.State),
+		slog.String("id_token_hint", redacted(r.IDTokenHint)))
+}

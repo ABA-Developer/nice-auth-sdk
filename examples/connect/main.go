@@ -10,11 +10,14 @@
 //	SERVICE_SLUG        the slug of the service to call; default nadi
 //	SERVICE_URL         the address of that service
 //	TOKEN_DIR           where refresh tokens are kept; default ./tokens
+//	POST_LOGOUT_URL     where NICE sends the browser after /logout; optional, it must be a
+//	                    post-logout redirect URI of the client. Empty shows the page of NICE.
 //
 // Open PUBLIC_URL in a browser: / shows the state, /login starts the sign-in,
 // /contexts lists the organizations and projects of the user to pick one
 // (right after the sign-in), /devices calls the service as the signed-in user
-// in the picked project, /logout ends the session.
+// in the picked project, /switch-account signs in with another NICE account,
+// /logout signs out of this program and of NICE.
 package main
 
 import (
@@ -79,12 +82,23 @@ func main() {
 	// The organization and project each browser session picked. A real application keeps them in its sessions.
 	var mu sync.Mutex
 	picked := map[string]choice{}
+	// The ID token of each browser session, kept on the server for the sign-out. It names the user: never send it
+	// to the browser or log it.
+	idTokens := map[string]string{}
+	forget := func(sid string) string {
+		mu.Lock()
+		defer mu.Unlock()
+		idToken := idTokens[sid]
+		delete(picked, sid)
+		delete(idTokens, sid)
+		return idToken
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		sid := session(w, r)
 		if client.Connected(r.Context(), sid) {
-			_, _ = fmt.Fprint(w, "signed in. /contexts picks a project, /devices calls the service, /logout signs out\n")
+			_, _ = fmt.Fprint(w, "signed in. /contexts picks a project, /devices calls the service, /switch-account uses another account, /logout signs out\n")
 			return
 		}
 		_, _ = fmt.Fprint(w, "not signed in. open /login\n")
@@ -118,6 +132,9 @@ func main() {
 		// conn.NiceSubject is the NICE account (usr_...). An application with users of its own links it to its
 		// user here and refuses an account that is already linked to another user.
 		log.Printf("signed in as %s", conn.NiceSubject)
+		mu.Lock()
+		idTokens[session(w, r)] = conn.IDToken
+		mu.Unlock()
 		http.Redirect(w, r, "/contexts", http.StatusFound)
 	})
 
@@ -188,18 +205,45 @@ func main() {
 		_, _ = io.Copy(w, io.LimitReader(resp.Body, 1<<20))
 	})
 
-	mux.HandleFunc("GET /logout", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /switch-account", func(w http.ResponseWriter, r *http.Request) {
+		sid := session(w, r)
 		// Disconnect revokes the refresh token at NICE. When NICE cannot be reached it returns the error and
 		// keeps the session, so the user never looks signed out while the token still works.
-		if err := client.Disconnect(r.Context(), session(w, r)); err != nil {
+		if err := client.Disconnect(r.Context(), sid); err != nil {
 			http.Error(w, "cannot sign out now, try again", http.StatusBadGateway)
 			return
 		}
-		mu.Lock()
-		delete(picked, session(w, r))
-		mu.Unlock()
+		forget(sid)
+		// NICE keeps its own session and shows its account chooser instead of signing the same account in again.
+		authURL, err := client.AuthorizeURL(r.Context(), credentials.ConnectRequest{
+			Subject: sid, Session: sid, RedirectURI: public + "/callback", Audience: slug, Prompt: credentials.PromptSelectAccount,
+		})
+		if err != nil {
+			http.Error(w, "cannot start the sign-in", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, authURL, http.StatusFound)
+	})
+
+	mux.HandleFunc("GET /logout", func(w http.ResponseWriter, r *http.Request) {
+		sid := session(w, r)
+		// Disconnect first: it revokes the refresh token from the server even when the browser no longer has a
+		// NICE session. When NICE cannot be reached the user stays signed in and may try again.
+		if err := client.Disconnect(r.Context(), sid); err != nil {
+			http.Error(w, "cannot sign out now, try again", http.StatusBadGateway)
+			return
+		}
+		idToken := forget(sid)
 		http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1})
-		_, _ = fmt.Fprint(w, "signed out\n")
+		// Then NICE ends its own session, so the next sign-in asks for the password.
+		endURL, err := client.EndSessionURL(credentials.EndSessionRequest{
+			PostLogoutRedirectURI: os.Getenv("POST_LOGOUT_URL"), IDTokenHint: idToken,
+		})
+		if err != nil {
+			http.Error(w, "cannot sign out of NICE", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, endURL, http.StatusFound)
 	})
 
 	addr := env.Or("LISTEN_ADDR", "127.0.0.1:8084")

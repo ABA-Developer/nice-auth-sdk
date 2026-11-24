@@ -4,7 +4,7 @@
 //
 //	NICE_ISSUER         the issuer of NICE
 //	NICE_CLIENT_ID      the OAuth client of this application
-//	NICE_CLIENT_SECRET  its secret (empty for a public client)
+//	NICE_CLIENT_SECRET  its secret (empty for a public client, which then has no picker)
 //	PUBLIC_URL          where the browser reaches this program; default http://localhost:8084.
 //	                    PUBLIC_URL + /callback must be a redirect URI of the client.
 //	SERVICE_SLUG        the slug of the service to call; default nadi
@@ -12,7 +12,9 @@
 //	TOKEN_DIR           where refresh tokens are kept; default ./tokens
 //
 // Open PUBLIC_URL in a browser: / shows the state, /login starts the sign-in,
-// /devices calls the service as the signed-in user, /logout ends the session.
+// /contexts lists the organizations and projects of the user to pick one
+// (right after the sign-in), /devices calls the service as the signed-in user
+// in the picked project, /logout ends the session.
 package main
 
 import (
@@ -21,12 +23,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
+	"sync"
 
 	"github.com/ABA-Developer/nice-auth-sdk/credentials"
 	"github.com/ABA-Developer/nice-auth-sdk/examples/internal/env"
@@ -60,11 +65,26 @@ func main() {
 	}
 	go client.Run(ctx)
 
+	// The picker needs a confidential client: the exchange for the NICE API is authenticated with the secret of
+	// the same service client. A public client has no picker and calls the service where NICE puts the user.
+	var exchange *credentials.ExchangeClient
+	if secret := os.Getenv("NICE_CLIENT_SECRET"); secret != "" {
+		exchange, err = credentials.NewExchange(credentials.ExchangeConfig{
+			Issuer: env.Must("NICE_ISSUER"), ClientID: env.Must("NICE_CLIENT_ID"), ClientSecret: secret,
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	// The organization and project each browser session picked. A real application keeps them in its sessions.
+	var mu sync.Mutex
+	picked := map[string]choice{}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		sid := session(w, r)
 		if client.Connected(r.Context(), sid) {
-			_, _ = fmt.Fprint(w, "signed in. /devices calls the service, /logout signs out\n")
+			_, _ = fmt.Fprint(w, "signed in. /contexts picks a project, /devices calls the service, /logout signs out\n")
 			return
 		}
 		_, _ = fmt.Fprint(w, "not signed in. open /login\n")
@@ -98,7 +118,43 @@ func main() {
 		// conn.NiceSubject is the NICE account (usr_...). An application with users of its own links it to its
 		// user here and refuses an account that is already linked to another user.
 		log.Printf("signed in as %s", conn.NiceSubject)
-		http.Redirect(w, r, "/", http.StatusFound)
+		http.Redirect(w, r, "/contexts", http.StatusFound)
+	})
+
+	mux.HandleFunc("GET /contexts", func(w http.ResponseWriter, r *http.Request) {
+		sid := session(w, r)
+		if exchange == nil {
+			_, _ = fmt.Fprint(w, "no picker: a public client cannot exchange tokens. /devices calls the service\n")
+			return
+		}
+		// The sign-in token works before any project is known, and only for the NICE API.
+		signIn, err := client.SignInToken(r.Context(), sid)
+		if errors.Is(err, credentials.ErrNotConnected) || errors.Is(err, credentials.ErrSessionEnded) {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		if err != nil {
+			http.Error(w, "NICE cannot be reached now", http.StatusBadGateway)
+			return
+		}
+		contexts, err := exchange.Contexts(r.Context(), signIn.Access)
+		if err != nil {
+			http.Error(w, "the organizations cannot be read now", http.StatusBadGateway)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if err := pickerPage.Execute(w, picker(contexts, slug)); err != nil {
+			log.Print(err)
+		}
+	})
+
+	mux.HandleFunc("GET /choose", func(w http.ResponseWriter, r *http.Request) {
+		sid := session(w, r)
+		// No need to check the pair against the list: NICE refuses a token for a context the user may not use.
+		mu.Lock()
+		picked[sid] = choice{Org: r.URL.Query().Get("org"), Project: r.URL.Query().Get("project")}
+		mu.Unlock()
+		http.Redirect(w, r, "/devices", http.StatusFound)
 	})
 
 	mux.HandleFunc("GET /devices", func(w http.ResponseWriter, r *http.Request) {
@@ -108,12 +164,20 @@ func main() {
 			http.Error(w, "bad service address", http.StatusInternalServerError)
 			return
 		}
-		// Do gets a token for this user and this service with the refresh token, keeps it, and renews it. A
-		// backend whose users switch organizations names Key.Org and Key.Project on every call.
-		resp, err := client.Do(r.Context(), credentials.Key{Subject: sid, Audience: slug}, req)
+		mu.Lock()
+		c := picked[sid]
+		mu.Unlock()
+		// Do gets a token for this user and this service with the refresh token, keeps it, and renews it. The
+		// picked organization and project are named on every call; empty ones keep those NICE puts the user in.
+		resp, err := client.Do(r.Context(), credentials.Key{Subject: sid, Org: c.Org, Audience: slug, Project: c.Project}, req)
+		var grant *credentials.GrantError
 		switch {
 		case errors.Is(err, credentials.ErrNotConnected), errors.Is(err, credentials.ErrSessionEnded):
 			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		case errors.As(err, &grant):
+			// access_denied or invalid_scope: not usable in this context; the session still works.
+			http.Error(w, "the service is not available in this context ("+grant.Code+"), pick another at /contexts", http.StatusForbidden)
 			return
 		case err != nil:
 			http.Error(w, "the service cannot be called now", http.StatusBadGateway)
@@ -131,6 +195,9 @@ func main() {
 			http.Error(w, "cannot sign out now, try again", http.StatusBadGateway)
 			return
 		}
+		mu.Lock()
+		delete(picked, session(w, r))
+		mu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: cookieName, Path: "/", MaxAge: -1})
 		_, _ = fmt.Fprint(w, "signed out\n")
 	})
@@ -139,6 +206,46 @@ func main() {
 	log.Printf("open %s", public)
 	log.Fatal(http.ListenAndServe(addr, mux))
 }
+
+type choice struct{ Org, Project string }
+
+type pickerOrg struct {
+	Name, ID  string
+	ActAs     bool
+	Truncated bool
+	OrgLevel  bool // the service is used in the organization itself (organization tenancy)
+	Projects  []credentials.ContextProject
+}
+
+// picker keeps the places where the user may use the service slug, in the order NICE gave them.
+func picker(contexts credentials.Contexts, slug string) []pickerOrg {
+	var out []pickerOrg
+	for _, o := range contexts.Organizations {
+		po := pickerOrg{Name: o.Name, ID: o.ID, ActAs: o.ActAs, Truncated: o.ProjectsTruncated, OrgLevel: slices.Contains(o.Services, slug)}
+		for _, p := range o.Projects {
+			if slices.Contains(p.Services, slug) {
+				po.Projects = append(po.Projects, p)
+			}
+		}
+		if po.OrgLevel || len(po.Projects) > 0 {
+			out = append(out, po)
+		}
+	}
+	return out
+}
+
+// html/template escapes the names, which NICE takes from its users.
+var pickerPage = template.Must(template.New("picker").Parse(`<!doctype html>
+<title>Pick a project</title>
+<h1>Where do you work?</h1>
+{{range .}}<h2>{{.Name}}{{if .ActAs}} (acting as operator){{end}}</h2>
+<ul>
+{{if .OrgLevel}}<li><a href="/choose?org={{.ID}}">the whole organization</a></li>{{end}}
+{{$org := .ID}}{{range .Projects}}<li><a href="/choose?org={{$org}}&amp;project={{.ID}}">{{.Name}}</a></li>
+{{end}}{{if .Truncated}}<li>more projects exist than NICE listed</li>{{end}}
+</ul>
+{{else}}<p>The service is not available to you in any organization.</p>
+{{end}}`))
 
 // session returns the ID of the browser session, creating the cookie when there is none. A real application
 // uses its own session store, and sets Secure on the cookie when it is served over https.

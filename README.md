@@ -26,7 +26,7 @@ Each folder in [`examples/`](examples) is one `main` program for one role. Its s
 | [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
 | [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, tenants |
 | [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs` |
-| [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `Do`, `Disconnect` |
+| [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `SignInToken`, `Contexts`, `Do`, `Disconnect` |
 
 ```bash
 export NICE_ISSUER=https://auth.example.com NICE_SA_ID=sa_... NICE_SA_API_KEY=...
@@ -114,14 +114,50 @@ req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://inventaris.ex
 resp, err := x.DoAs(ctx, userToken, credentials.Key{Audience: "inventaris"}, req)
 ```
 
+## Choosing an organization and a project
+
+A token for a service names one organization and, for most services, one project. Before the user has picked them, the backend lists where the user may work with `ExchangeClient.Contexts`. It exchanges a user token for a delegated token of the NICE API (`Key{Audience: "nice"}`), reads every page of `GET /api/v1/me/contexts`, and returns the organizations in the order NICE gives them, each with its projects and the services the user may use in each.
+
+A web backend that keeps the refresh token (`KindBFF`) does it right after the sign-in. The `ExchangeClient` uses the same service client as the `Client`:
+
+```go
+conn, err := c.HandleCallback(ctx, sessionID, r.URL.Query())
+// ...
+signIn, err := c.SignInToken(ctx, subject) // a token for the client itself, before any project is known
+contexts, err := x.Contexts(ctx, signIn.Access)
+for _, o := range contexts.Organizations {
+	// o.ID, o.Name, o.ActAs (a platform operator acting as this organization), o.ProjectsTruncated
+	for _, p := range o.Projects {
+		// p.ID, p.Name, p.Services: the slugs of the services the user may use in p
+	}
+}
+
+// The user picks an organization and a project; keep them in the session and name them on every call.
+resp, err := c.Do(ctx, credentials.Key{Subject: subject, Org: org, Audience: "navi", Project: project}, req)
+```
+
+The backend of a service passes the token of the request it serves, after verifying it:
+
+```go
+contexts, err := x.Contexts(ctx, userToken)
+```
+
+- **`Project` is required** for a service with `project` tenancy: NICE refuses a token for it without a project (`invalid_scope`). Offer the projects whose `Services` hold the slug of the service.
+- **`Project` may be empty** for a service with `organization` tenancy, which is coming in NICE. Such an organization lists the slug in `ContextOrganization.Services`, which stays empty until NICE sends it.
+- **A SPA (public client) cannot use `Contexts`.** The exchange needs the secret of a confidential service client. A SPA picks the context by hand or asks a backend (BFF) that holds the secret.
+
+[`examples/connect`](examples/connect/main.go) shows the whole flow with a picker.
+
 ## Reading errors
 
 ```go
 var grant *credentials.GrantError
+var api *credentials.APIError
 switch {
 case errors.As(err, &grant) && grant.Permanent: // NICE refused for good: replace the key or ask the user to sign in again
 case errors.As(err, &grant):                    // NICE refused this request only (e.g. access_denied)
-case credentials.IsTemporary(err):              // NICE cannot be reached: try again later
+case credentials.IsTemporary(err):              // NICE cannot be reached, or answered 5xx or 429: try again later
+case errors.As(err, &api):                      // the NICE API refused (Contexts), e.g. 403 user_required
 case errors.Is(err, credentials.ErrForeignHost): // a request to another host than the service of this client
 }
 ```

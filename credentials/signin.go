@@ -27,10 +27,10 @@ func (c *Client) safety(key Key) time.Duration {
 // SignInToken returns the sign-in token of the connected user subject: the token a refresh with Config.BaseScopes
 // only issues to this client for itself, in the organization the refresh token is in, which the refresh leaves
 // unchanged. It is the subject token of an exchange for the NICE API, for instance to read the organizations and
-// projects of the user with GET /api/v1/me/contexts before a project is known:
+// projects of the user with ExchangeClient.Contexts before a project is known:
 //
 //	signIn, err := c.SignInToken(ctx, subject)
-//	tok, err := x.Token(ctx, signIn.Access, credentials.Key{Audience: "nice"})
+//	contexts, err := x.Contexts(ctx, signIn.Access)
 //
 // NICE refuses a sign-in token as the subject of an exchange for any other service. The token is kept until close
 // to its expiry and is not renewed in the background. The refresh token is used one at a time with the other keys

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- `ExchangeClient.Contexts` lists the organizations and projects of the user of a subject token from `GET /api/v1/me/contexts`, with the services of each project, `act_as` and `projects_truncated` of each organization, and the services of an organization once NICE sends them. It reads every page (at most 100, each body at most 4 MiB) and returns an error and no list beyond the bounds. The delegated token of the NICE API is kept per subject token and exchanged once more on `token_stale`, as for `DoAs`. Use it with the sign-in token of `Client.SignInToken` or with the token of a request.
+- `APIError` (`Status`, `Code`, `Message`, `RequestID`) for an answer of the NICE API other than 2xx. A 5xx or 429 comes wrapped in a `TemporaryError`, so `IsTemporary` holds and `errors.As` still finds the `APIError`. Its message never holds a token or the raw body.
+
 ### Security
 
 - `FileStore` named two different subjects alike: its escape (`~` and a hex number of any length) wrote `bob.example` and `bobˮxample`, or any two invalid UTF-8 strings, to the same files. A user of the application whose subject collided with another one's read that user's refresh token and got NICE tokens of the other account. Each byte outside `[A-Za-z0-9_-]` is now written as `.` and two hex digits, so every subject has files of its own. `DeleteSubject` no longer uses a glob, so a store directory whose name holds `[`, `*` or `?` still works.

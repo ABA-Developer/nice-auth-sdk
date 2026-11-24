@@ -53,10 +53,14 @@
 // A kept token is found by the subject token itself, never by claims read from
 // a token the client did not verify.
 //
-// A backend that holds the refresh token of a user through a service client
-// discovers the organizations and projects of the user before a project is
-// known: Client.SignInToken gives the sign-in token of the user, and an
-// ExchangeClient of the same service client trades it for a delegated token of
-// the NICE API (Key{Audience: "nice"}) to call GET /api/v1/me/contexts. NICE
-// accepts a sign-in token as the subject of an exchange for the NICE API only.
+// ExchangeClient.Contexts lists the organizations and projects of a user, and
+// the services the user may use in each, before a project is known: it trades
+// the subject token for a delegated token of the NICE API (Key{Audience:
+// "nice"}) and reads every page of GET /api/v1/me/contexts. A backend that
+// holds the refresh token of a user through a service client passes the
+// sign-in token of Client.SignInToken, with an ExchangeClient of the same
+// service client; NICE accepts a sign-in token as the subject of an exchange
+// for the NICE API only. The backend of a service passes the token of the
+// request. The chosen organization and project then go in Key.Org and
+// Key.Project. An answer of the NICE API other than 2xx is an APIError.
 package credentials

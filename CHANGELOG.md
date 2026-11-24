@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## v0.2.0
+
+### Added
+
+- `verify` reads `perms_ref`. NICE keeps a token under 6 KB; when the permissions of a principal on one service would make it larger, the token carries `perms_ref`, the reference (a hash) of its permission list, in place of `perms`. With `Config.Resolver` the verifier asks NICE for the list once per reference (`POST /api/v1/permission-resolutions`), checks that it hashes to the reference, keeps it, and fills `Claims.Permissions`, so `Require` and handlers need no change. `NewHTTPResolver(baseURL, apiKey)` is the resolver for NICE; it takes the API key of the access check and of the feed (a Service Account with the `nice.service` role), and follows the same address and redirect rules as `HTTPChecker`.
+- `PermissionCache` (`NewPermissionCache`, `Config.Permissions`) keeps the resolved lists by reference, 1,024 by default, and may be shared by several verifiers. `WithStore` puts a `PermissionStore` of the service behind its memory, to share the lists between replicas or keep them over a restart; a list from the store is used only when it hashes to its reference.
+- `PermsRef` computes the reference of a permission list. `ReasonPermsDown` (`permissions_unavailable`) is the reason of the new 503.
+- The shared vectors are version 3: six `perms_ref` vectors with the answer of the resolution in `resolve`, and `perms_refs`, permission lists with the reference to compute.
+
+Set `Config.Resolver` in every service before NICE issues such tokens. A verifier of this version without a resolver refuses a `perms_ref` token with `503 permissions_unavailable`; an older verifier reads it as a token without permissions and answers `403`. When NICE says the reference no longer matches (the permissions changed since the token was issued), the answer is `401 token_stale` and the client renews its token. A token that carries both `perms` and `perms_ref` is refused as `malformed`.
 
 ### Added
 

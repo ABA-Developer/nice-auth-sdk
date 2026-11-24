@@ -46,4 +46,5 @@ const (
 	ReasonCheck       = "access_denied"
 	ReasonCheckDown   = "access_check_unavailable"
 	ReasonKeysDown    = "keys_unavailable"
+	ReasonPermsDown   = "permissions_unavailable"
 )

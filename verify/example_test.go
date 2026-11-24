@@ -20,6 +20,8 @@ func Example() {
 		Tenants: verify.ProvisionOnFirstUse(func(ctx context.Context, org string) error { return createTenant(ctx, org) }),
 		// Operations declared x-nice-sensitive are checked online.
 		Checker: verify.NewHTTPChecker("https://auth.example.com", "nice_sk_reader.key"),
+		// A token too large to carry its permissions carries their reference; the verifier asks NICE once per list.
+		Resolver: verify.NewHTTPResolver("https://auth.example.com", "nice_sk_reader.key"),
 	})
 	if err != nil {
 		panic(err)

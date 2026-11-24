@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -22,6 +23,13 @@ type vectorFile struct {
 	Service string          `json:"service"`
 	JWKS    json.RawMessage `json:"jwks"`
 	Vectors []vector        `json:"vectors"`
+	// PermsRefs are permission lists with the reference an implementation must compute for each.
+	PermsRefs []vectorPermsRef `json:"perms_refs,omitempty"`
+}
+
+type vectorPermsRef struct {
+	Permissions []string `json:"permissions"`
+	PermsRef    string   `json:"perms_ref"`
 }
 
 type vector struct {
@@ -35,8 +43,27 @@ type vector struct {
 	Changes []vectorChange `json:"changes,omitempty"`
 	Tenant  vectorTenant   `json:"tenant"`
 	// Check is the answer of the online access check: allow, deny or down.
-	Check  string       `json:"check,omitempty"`
-	Expect vectorExpect `json:"expect"`
+	Check string `json:"check,omitempty"`
+	// Resolve is the answer of NICE to the resolution of perms_ref; without it the verifier has no resolver.
+	Resolve *vectorResolve `json:"resolve,omitempty"`
+	Expect  vectorExpect   `json:"expect"`
+}
+
+// vectorResolve is one answer of the permission resolution: match answers with Permissions, whatever their
+// reference is, mismatch says the reference does not match, and down cannot be reached.
+type vectorResolve struct {
+	Answer      string   `json:"answer"`
+	Permissions []string `json:"permissions,omitempty"`
+}
+
+func (r vectorResolve) Resolve(context.Context, *Claims) ([]string, bool, error) {
+	switch r.Answer {
+	case "match":
+		return slices.Clone(r.Permissions), true, nil
+	case "mismatch":
+		return nil, false, nil
+	}
+	return nil, false, errors.New("NICE is down")
 }
 
 type vectorRequest struct {
@@ -104,6 +131,9 @@ func (v vector) run(t *testing.T, f vectorFile) (int, map[string]string) {
 	if v.Check != "" {
 		cfg.Checker = fakeChecker(v.Check)
 	}
+	if v.Resolve != nil {
+		cfg.Resolver = *v.Resolve
+	}
 	ver, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -156,8 +186,26 @@ func TestVectors(t *testing.T) {
 	if err := json.Unmarshal(raw, &f); err != nil {
 		t.Fatal(err)
 	}
-	if f.Version != 2 || len(f.Vectors) < 42 {
+	if f.Version != 3 || len(f.Vectors) < 48 {
 		t.Fatalf("vector file: version %d, %d vectors", f.Version, len(f.Vectors))
+	}
+	names := map[string]bool{}
+	for _, v := range f.Vectors {
+		names[v.Name] = true
+	}
+	for _, name := range []string{"perms_ref_resolved", "perms_ref_permission_missing", "perms_ref_mismatch", "perms_ref_resolution_down",
+		"perms_ref_other_list", "perms_and_perms_ref"} {
+		if !names[name] {
+			t.Errorf("the vector %s is missing", name)
+		}
+	}
+	if len(f.PermsRefs) == 0 {
+		t.Error("the vector file has no permission list to compute a reference from")
+	}
+	for _, e := range f.PermsRefs {
+		if got := PermsRef(e.Permissions); got != e.PermsRef {
+			t.Errorf("PermsRef(%v) = %q, want %q", e.Permissions, got, e.PermsRef)
+		}
 	}
 	for _, v := range f.Vectors {
 		t.Run(v.Name, func(t *testing.T) {

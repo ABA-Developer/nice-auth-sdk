@@ -6,7 +6,8 @@
 //	NICE_ISSUER           the issuer of NICE, exactly as the iss claim of its tokens
 //	SERVICE_SLUG          the slug of this service in the NICE catalog; default nadi
 //	NICE_SERVICE_API_KEY  optional: the API key of a Service Account with the nice.service role.
-//	                      With it the service reads the feed and checks sensitive operations online.
+//	                      With it the service reads the feed, checks sensitive operations online, and
+//	                      serves callers whose permissions are too many to fit in their token.
 //	JWKS_FILE             where a copy of the keys of NICE is kept; default jwks.json
 //	LISTEN_ADDR           default 127.0.0.1:8081
 package main
@@ -39,6 +40,9 @@ func main() {
 	if apiKey != "" {
 		// Without a Checker, an operation guarded with Sensitive() answers 503.
 		cfg.Checker = verify.NewHTTPChecker(issuer, apiKey)
+		// Without a Resolver, a token that carries perms_ref instead of perms answers 503: NICE issues one to a
+		// caller that holds more permissions than fit in a token.
+		cfg.Resolver = verify.NewHTTPResolver(issuer, apiKey)
 	}
 	v, err := verify.New(cfg)
 	if err != nil {

@@ -111,6 +111,7 @@ func TestWriteVectors(t *testing.T) {
 	hsTok, _ := hsJWS.CompactSerialize()
 
 	actAs := good.sign(t, claims(map[string]any{"nice_act_as": vPlatform}))
+	byRef := good.sign(t, refClaims(nil))
 
 	read := vectorRequest{Permission: "navi.orders.read"}
 	ok200 := vectorExpect{Status: 200, Tenant: vOrg}
@@ -193,11 +194,33 @@ func TestWriteVectors(t *testing.T) {
 		{Name: "same_second_without_pv", Description: "a token without pv of the second of the change is not refused: only pv can order them",
 			Token: good.sign(t, claims(map[string]any{"pv": nil})), Now: vNow,
 			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}}, Request: read, Tenant: allowAll, Expect: ok200},
+		{Name: "perms_ref_resolved", Description: "a token that carries perms_ref instead of perms: the list NICE resolves it to holds the permission",
+			Token: byRef, Now: vNow, Request: read, Tenant: allowAll, Resolve: &vectorResolve{Answer: "match", Permissions: vRefPerms}, Expect: ok200},
+		{Name: "perms_ref_permission_missing", Description: "the list perms_ref names does not hold the permission the operation needs",
+			Token: byRef, Now: vNow, Request: vectorRequest{Permission: "navi.orders.delete"}, Tenant: allowAll,
+			Resolve: &vectorResolve{Answer: "match", Permissions: vRefPerms}, Expect: deny(403, "insufficient_scope", "permission_denied")},
+		{Name: "perms_ref_mismatch", Description: "NICE says perms_ref no longer matches the permissions of the principal: the token is stale",
+			Token: byRef, Now: vNow, Request: read, Tenant: allowAll, Resolve: &vectorResolve{Answer: "mismatch"}, Expect: deny(401, "invalid_token", "token_stale")},
+		{Name: "perms_ref_resolution_down", Description: "perms_ref is not known and NICE cannot be reached: the request fails closed",
+			Token: byRef, Now: vNow, Request: read, Tenant: allowAll, Resolve: &vectorResolve{Answer: "down"},
+			Expect: deny(503, "temporarily_unavailable", "permissions_unavailable")},
+		{Name: "perms_ref_other_list", Description: "the answer holds a list whose reference is not perms_ref: it is not used, even though it holds the permission",
+			Token: byRef, Now: vNow, Request: read, Tenant: allowAll, Resolve: &vectorResolve{Answer: "match", Permissions: []string{"navi.orders.read"}},
+			Expect: deny(503, "temporarily_unavailable", "permissions_unavailable")},
+		{Name: "perms_and_perms_ref", Description: "a token that carries both perms and perms_ref says its permissions twice and is refused",
+			Token: good.sign(t, claims(map[string]any{"perms_ref": vRef})), Now: vNow, Request: read, Tenant: allowAll,
+			Resolve: &vectorResolve{Answer: "match", Permissions: vRefPerms}, Expect: deny(401, "invalid_token", "malformed")},
 	}
 	if len(kept.Vectors) > 0 {
 		vs = keepVectors(kept.Vectors, vs)
 	}
-	out := vectorFile{Version: 2, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs}
+	// The references are literals computed outside this package, so a wrong PermsRef cannot write its own answer.
+	refs := []vectorPermsRef{
+		{Permissions: []string{"navi.routes.read", "navi.orders.read", "navi.orders.read"}, PermsRef: vRef},
+		{Permissions: []string{"b.x.read", "a.y.edit"}, PermsRef: vThirdRef},
+		{Permissions: []string{}, PermsRef: "v1.47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU"},
+	}
+	out := vectorFile{Version: 3, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs, PermsRefs: refs}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		t.Fatal(err)

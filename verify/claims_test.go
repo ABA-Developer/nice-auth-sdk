@@ -35,3 +35,17 @@ func TestClaimsExposeActAs(t *testing.T) {
 		t.Fatalf("a token without nice_act_as is not act-as: %+v %v", plain, err)
 	}
 }
+
+func TestClaimsExposeThePermissionReference(t *testing.T) {
+	var c Claims
+	if err := json.Unmarshal([]byte(`{"sub":"usr_1","perms_ref":"v1.abc"}`), &c); err != nil {
+		t.Fatal(err)
+	}
+	if c.PermsRef != "v1.abc" || c.Permissions != nil {
+		t.Fatalf("claims %+v", c)
+	}
+	var plain Claims
+	if err := json.Unmarshal([]byte(`{"sub":"usr_1","perms":[]}`), &plain); err != nil || plain.PermsRef != "" {
+		t.Fatalf("a token with perms has no reference: %+v %v", plain, err)
+	}
+}

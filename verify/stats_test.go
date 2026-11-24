@@ -66,6 +66,9 @@ func TestEnteringAndLeavingDegradedModeIsLogged(t *testing.T) {
 	eventually(t, "degraded mode is entered", 3*time.Second, func() bool { return v.Degraded() })
 	f.setDown(false)
 	eventually(t, "degraded mode is left", 5*time.Second, func() bool { return !v.Degraded() })
+	eventually(t, "leaving degraded mode is logged", 2*time.Second, func() bool {
+		return strings.Contains(logs.String(), "the access change feed is back")
+	})
 	out := logs.String()
 	for _, want := range []string{"the access change feed is silent", "the access change feed is back", "reading the access change feed failed"} {
 		if !strings.Contains(out, want) {

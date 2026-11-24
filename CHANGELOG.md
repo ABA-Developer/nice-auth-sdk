@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ExchangeClient.Contexts` lists the organizations and projects of the user of a subject token from `GET /api/v1/me/contexts`, with the services of each project, and `act_as` and `projects_truncated` of each organization. It reads every page (at most 100, each body at most 4 MiB) and returns an error and no list beyond the bounds. The delegated token of the NICE API is kept per subject token and exchanged once more on `token_stale`, as for `DoAs`. Use it with the sign-in token of `Client.SignInToken` or with the token of a request.
+- `APIError` (`Status`, `Code`, `Message`, `RequestID`) for an answer of the NICE API other than 2xx. A 5xx or 429 comes wrapped in a `TemporaryError`, so `IsTemporary` holds and `errors.As` still finds the `APIError`. Its message never holds a token or the raw body.
+
 ## v0.2.0
 
 ### Added

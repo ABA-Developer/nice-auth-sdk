@@ -40,3 +40,27 @@ func IsTemporary(err error) bool {
 	var t *TemporaryError
 	return errors.As(err, &t)
 }
+
+// APIError is an answer of the NICE API other than 2xx. Code is the error_code of NICE (user_required,
+// permission_denied, ...) and is empty when the body was not the JSON error of NICE. A 5xx or 429 comes wrapped in a
+// TemporaryError, so IsTemporary holds for it while errors.As still finds the APIError.
+type APIError struct {
+	Status    int
+	Code      string
+	Message   string
+	RequestID string
+}
+
+func (e *APIError) Error() string {
+	s := fmt.Sprintf("niceauth: the NICE API answered %d", e.Status)
+	if e.Code != "" {
+		s += " " + e.Code
+	}
+	if e.Message != "" {
+		s += ": " + e.Message
+	}
+	if e.RequestID != "" {
+		s += " (request " + e.RequestID + ")"
+	}
+	return s
+}

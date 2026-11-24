@@ -265,6 +265,12 @@ func (x *ExchangeClient) DoAs(ctx context.Context, subjectToken string, key Key,
 	if err := checkParsed("the request address", req.URL, x.cfg.AllowInsecureHTTP); err != nil {
 		return nil, err
 	}
+	return x.doAs(ctx, subjectToken, key, req, x.cfg.HTTP)
+}
+
+// doAs is the loop of DoAs and Contexts: it sends a copy of req through hc with a token for key, and on a 401 for a
+// stale or expired token drops that token, exchanges again and sends once more.
+func (x *ExchangeClient) doAs(ctx context.Context, subjectToken string, key Key, req *http.Request, hc *http.Client) (*http.Response, error) {
 	for attempt := 0; ; attempt++ {
 		tok, err := x.Token(ctx, subjectToken, key)
 		if err != nil {
@@ -279,7 +285,7 @@ func (x *ExchangeClient) DoAs(ctx context.Context, subjectToken string, key Key,
 			}
 			r.Body = body
 		}
-		resp, err := x.cfg.HTTP.Do(r)
+		resp, err := hc.Do(r)
 		if err != nil || resp.StatusCode != http.StatusUnauthorized || attempt > 0 || !staleChallenge(resp) {
 			return resp, err
 		}

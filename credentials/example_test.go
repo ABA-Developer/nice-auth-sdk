@@ -3,8 +3,10 @@ package credentials_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/ABA-Developer/nice-auth-sdk/credentials"
@@ -195,9 +197,52 @@ func Example_discoverContexts() {
 	if err != nil {
 		return // invalid_grant: the session ended, sign the user in again
 	}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://auth.example.com/api/v1/me/contexts", nil)
-	resp, err := x.DoAs(ctx, signIn.Access, credentials.Key{Audience: "nice"}, req)
-	if err == nil {
-		_ = resp.Body.Close() // the organizations and projects where the user may use the service
+	contexts, err := x.Contexts(ctx, signIn.Access)
+	if err != nil {
+		return
 	}
+	// Show the projects where the user may use naia; the user picks one, kept in the session.
+	var org, project string
+	for _, o := range contexts.Organizations {
+		for _, p := range o.Projects {
+			if slices.Contains(p.Services, "naia") && project == "" {
+				org, project = o.ID, p.ID
+			}
+		}
+	}
+	_, _ = c.Token(ctx, credentials.Key{Subject: "local-user-42", Org: org, Audience: "naia", Project: project})
+}
+
+// The backend of a service lists the organizations and projects of the user whose request it serves, with the token
+// that request brought.
+func ExampleExchangeClient_Contexts() {
+	x, err := credentials.NewExchange(credentials.ExchangeConfig{
+		Issuer: "https://auth.example.com", ClientID: "naia-backend", ClientSecret: "client-secret",
+	})
+	if err != nil {
+		panic(err)
+	}
+	http.HandleFunc("/contexts", func(w http.ResponseWriter, r *http.Request) {
+		// The token of the user, already verified by this service with verify.
+		subject := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		contexts, err := x.Contexts(r.Context(), subject)
+		var api *credentials.APIError
+		switch {
+		case errors.As(err, &api) && api.Code == "user_required":
+			http.Error(w, "only a user has contexts", http.StatusForbidden)
+			return
+		case credentials.IsTemporary(err):
+			http.Error(w, "NICE is not available", http.StatusServiceUnavailable)
+			return
+		case err != nil:
+			http.Error(w, "the contexts cannot be read", http.StatusBadGateway)
+			return
+		}
+		for _, o := range contexts.Organizations {
+			// o.ActAs marks an organization a platform operator acts as; o.ProjectsTruncated a partial project list.
+			for _, p := range o.Projects {
+				_, _ = fmt.Fprintf(w, "%s / %s: %v\n", o.Name, p.Name, p.Services)
+			}
+		}
+	})
 }

@@ -246,3 +246,50 @@ func ExampleExchangeClient_Contexts() {
 		}
 	})
 }
+
+// "Switch account" and "Sign out" of an application whose users sign in with NICE. Disconnect comes first in both:
+// it revokes the refresh token from the server, whether or not the browser still has a NICE session.
+func Example_signOutAndSwitchAccount() {
+	c, err := credentials.New(credentials.Config{
+		Issuer: "https://auth.example.com", ClientID: "nadi-web", ClientSecret: "client-secret", Kind: credentials.KindBFF,
+	})
+	if err != nil {
+		panic(err)
+	}
+	// The local user and session of the browser, and the ID token kept from Connection.IDToken, on the server.
+	user, session, idToken := "local-user-42", "session-id-of-this-browser", "eyJ..."
+
+	http.HandleFunc("/switch-account", func(w http.ResponseWriter, r *http.Request) {
+		if err := c.Disconnect(r.Context(), user); err != nil {
+			http.Error(w, "cannot sign out now, try again", http.StatusBadGateway)
+			return
+		}
+		// End the local session here. NICE keeps its session and shows its account chooser.
+		authURL, err := c.AuthorizeURL(r.Context(), credentials.ConnectRequest{
+			Subject: user, Session: session, RedirectURI: "https://nadi.example.com/auth/callback",
+			Prompt: credentials.PromptSelectAccount,
+		})
+		if err != nil {
+			http.Error(w, "cannot start the sign-in", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, authURL, http.StatusFound)
+	})
+
+	http.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		if err := c.Disconnect(r.Context(), user); err != nil {
+			http.Error(w, "cannot sign out now, try again", http.StatusBadGateway)
+			return
+		}
+		// End the local session here, then NICE ends its own: the next sign-in asks for the password.
+		endURL, err := c.EndSessionURL(credentials.EndSessionRequest{
+			PostLogoutRedirectURI: "https://nadi.example.com/signed-out", // registered with the OAuth client
+			IDTokenHint:           idToken,                               // optional
+		})
+		if err != nil {
+			http.Error(w, "cannot sign out", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, endURL, http.StatusFound)
+	})
+}

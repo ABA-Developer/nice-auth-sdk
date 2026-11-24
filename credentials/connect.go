@@ -35,6 +35,31 @@ type ConnectRequest struct {
 	// Org, Audience and Project ask for the first token; each is optional. Another service
 	// later needs no new sign-in: Token asks for it with the refresh token.
 	Org, Audience, Project string
+	// Prompt asks NICE what to show while the browser still has a NICE session: PromptSelectAccount for
+	// "switch account", PromptLogin to ask for the password again, PromptNone to sign in silently or fail.
+	// Empty lets NICE continue with the session it has. Any other value is refused.
+	Prompt string
+	// LoginHint is the email of the account NICE should offer first; optional.
+	LoginHint string
+}
+
+// Values of ConnectRequest.Prompt.
+const (
+	// PromptSelectAccount shows the account chooser of NICE, so the user can pick or add another account.
+	PromptSelectAccount = "select_account"
+	// PromptLogin shows the sign-in form even when the browser has a NICE session.
+	PromptLogin = "login"
+	// PromptNone never shows a page: without a NICE session the callback carries login_required,
+	// which HandleCallback returns as a GrantError.
+	PromptNone = "none"
+)
+
+func validPrompt(p string) bool {
+	switch p {
+	case "", PromptSelectAccount, PromptLogin, PromptNone:
+		return true
+	}
+	return false
 }
 
 // Pending is a connection that was started and not yet completed.
@@ -137,6 +162,9 @@ func (c *Client) AuthorizeURL(ctx context.Context, req ConnectRequest) (string, 
 	if c.isServiceAccount() {
 		return "", errors.New("niceauth: a Service Account does not connect through a browser")
 	}
+	if !validPrompt(req.Prompt) {
+		return "", fmt.Errorf("niceauth: Prompt %q is not one of select_account, login and none", req.Prompt)
+	}
 	verifier, err := randomURLSafe(48)
 	if err != nil {
 		return "", err
@@ -163,6 +191,12 @@ func (c *Client) AuthorizeURL(ctx context.Context, req ConnectRequest) (string, 
 	}
 	q := url.Values{"client_id": {c.cfg.ClientID}, "redirect_uri": {req.RedirectURI}, "response_type": {"code"}, "scope": {strings.Join(scopes, " ")},
 		"state": {state}, "code_challenge": {base64.RawURLEncoding.EncodeToString(sum[:])}, "code_challenge_method": {"S256"}}
+	if req.Prompt != "" {
+		q.Set("prompt", req.Prompt)
+	}
+	if req.LoginHint != "" {
+		q.Set("login_hint", req.LoginHint)
+	}
 	return c.cfg.Issuer + "/oauth/authorize?" + q.Encode(), nil
 }
 
@@ -174,6 +208,10 @@ type Connection struct {
 	// application keeps one NICE account for one local user: it must refuse a NICE account
 	// that is already linked to another.
 	NiceSubject string
+	// IDToken is the ID token NICE gave with the code, empty when it gave none. It is not kept in the
+	// Store; keep it in the local session on the server, if at all, to pass as EndSessionRequest.IDTokenHint.
+	// It names the user (email, name), so never log it or send it to the browser.
+	IDToken string
 }
 
 // HandleCallback completes a connection from the query of the callback request.
@@ -203,10 +241,11 @@ func (c *Client) HandleCallback(ctx context.Context, session string, query url.V
 	if c.cfg.ClientSecret != "" {
 		form.Set("client_secret", c.cfg.ClientSecret)
 	}
-	tok, refresh, err := c.exchange(ctx, form)
+	reply, err := c.exchangeWithID(ctx, form)
 	if err != nil {
 		return Connection{}, err
 	}
+	tok, refresh := reply.tok, reply.refresh
 	if refresh == "" {
 		return Connection{}, &GrantError{Status: http.StatusBadRequest, Code: "invalid_scope", Description: "NICE gave no refresh token; the client must be allowed offline_access"}
 	}
@@ -221,7 +260,7 @@ func (c *Client) HandleCallback(ctx context.Context, session string, query url.V
 	e.tok, e.hasTok, e.lastErr, e.noRenew = tok, true, nil, false
 	e.refreshAt = tok.IssuedAt.Add(c.cfg.RefreshAfter + time.Duration(c.cfg.Rand()*float64(c.cfg.Jitter)))
 	c.mu.Unlock()
-	return Connection{Subject: p.Subject, NiceSubject: subjectOf(tok.Access)}, nil
+	return Connection{Subject: p.Subject, NiceSubject: subjectOf(tok.Access), IDToken: reply.idToken}, nil
 }
 
 // subjectOf reads sub from the payload of a JWT without verifying it; it only names the account.

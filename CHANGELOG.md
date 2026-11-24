@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ConnectRequest.Prompt` sends `prompt` with the sign-in: `PromptSelectAccount` shows the account chooser of NICE, so a user who signed out of the application can pick another account instead of being signed in again with the same one; `PromptLogin` asks for the password again; `PromptNone` signs in without a page, and `HandleCallback` then returns a `GrantError` with code `login_required` when the browser has no NICE session. `AuthorizeURL` refuses any other value and keeps no state for it.
+- `ConnectRequest.LoginHint` sends `login_hint`, the email NICE offers first.
+- `Connection.IDToken`: `HandleCallback` returns the ID token NICE gave with the code. It is not kept in the `Store`, and `Connection` hides it when printed or logged.
+- `Client.EndSessionURL` builds the RP-initiated logout address (`/oauth/end_session`) with `client_id` and, when set, `post_logout_redirect_uri`, `state` and `id_token_hint`. It makes no request; the browser goes there after `Disconnect`, and NICE ends its session so the next sign-in asks for the password. `EndSessionRequest` hides the hint when printed or logged.
+- `examples/connect` has `/switch-account`, and `/logout` also ends the NICE session (`POST_LOGOUT_URL`). The README has a section on signing out and switching accounts.
+
 ## v0.2.1
 
 ### Added

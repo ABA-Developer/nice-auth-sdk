@@ -54,6 +54,8 @@ type fakeNice struct {
 	codes map[string]string
 	// orgOf is the organization each live refresh token is in; NICE keeps it there.
 	orgOf map[string]string
+	// idToken, when set, is given with the tokens of an authorization code.
+	idToken string
 }
 
 const (
@@ -221,7 +223,11 @@ func (f *fakeNice) serve(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid_grant"})
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"access_token": f.jwtFor("usr_nice-account", homeOrg), "token_type": "Bearer", "refresh_token": f.newRefresh(homeOrg), "expires_in": int(f.ttl.Seconds())})
+		answer := map[string]any{"access_token": f.jwtFor("usr_nice-account", homeOrg), "token_type": "Bearer", "refresh_token": f.newRefresh(homeOrg), "expires_in": int(f.ttl.Seconds())}
+		if f.idToken != "" {
+			answer["id_token"] = f.idToken
+		}
+		writeJSON(w, http.StatusOK, answer)
 	default:
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "unsupported_grant_type"})
 	}

@@ -129,6 +129,7 @@ func (c *Client) grant(ctx context.Context, key Key, form url.Values) (Token, er
 type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+	IDToken      string `json:"id_token"`
 	ExpiresIn    int64  `json:"expires_in"`
 	Error        string `json:"error"`
 	Description  string `json:"error_description"`
@@ -139,50 +140,67 @@ func (c *Client) exchange(ctx context.Context, form url.Values) (Token, string, 
 	return postToken(ctx, c.nice, c.cfg.Issuer, c.cfg.Now, form)
 }
 
+// tokenReply is a successful answer of the token endpoint.
+type tokenReply struct {
+	tok     Token
+	refresh string
+	idToken string
+}
+
+// exchangeWithID is exchange that also returns the ID token, if any.
+func (c *Client) exchangeWithID(ctx context.Context, form url.Values) (tokenReply, error) {
+	return postTokenReply(ctx, c.nice, c.cfg.Issuer, c.cfg.Now, form)
+}
+
 // postToken posts form to the token endpoint of issuer. A refusal is a GrantError, permanent for invalid_grant,
 // invalid_client and unauthorized_client; no answer, 5xx and 429 are a TemporaryError. hc must not follow redirects:
 // a redirect is a GrantError that says so, and the form, which holds the secret, is not sent to where it points.
 func postToken(ctx context.Context, hc *http.Client, issuer string, now func() time.Time, form url.Values) (Token, string, error) {
+	r, err := postTokenReply(ctx, hc, issuer, now, form)
+	return r.tok, r.refresh, err
+}
+
+func postTokenReply(ctx context.Context, hc *http.Client, issuer string, now func() time.Time, form url.Values) (tokenReply, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, issuer+"/oauth/token", strings.NewReader(form.Encode()))
 	if err != nil {
-		return Token{}, "", err
+		return tokenReply{}, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := hc.Do(req)
 	if err != nil {
-		return Token{}, "", &TemporaryError{Err: err}
+		return tokenReply{}, &TemporaryError{Err: err}
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if isRedirect(resp.StatusCode) {
-		return Token{}, "", &GrantError{Status: resp.StatusCode, Code: "redirect",
+		return tokenReply{}, &GrantError{Status: resp.StatusCode, Code: "redirect",
 			Description: "NICE answered with a redirect to " + redirectTarget(resp) + "; nothing was sent there, check Issuer"}
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return Token{}, "", &TemporaryError{Err: err}
+		return tokenReply{}, &TemporaryError{Err: err}
 	}
 	var tr tokenResponse
 	_ = json.Unmarshal(raw, &tr)
 	switch {
 	case resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable:
-		return Token{}, "", &TemporaryError{Err: fmt.Errorf("token endpoint answered %d %s", resp.StatusCode, tr.Error)}
+		return tokenReply{}, &TemporaryError{Err: fmt.Errorf("token endpoint answered %d %s", resp.StatusCode, tr.Error)}
 	case resp.StatusCode != http.StatusOK:
 		code := tr.Error
 		if code == "" {
 			code = strconv.Itoa(resp.StatusCode)
 		}
-		return Token{}, "", &GrantError{Status: resp.StatusCode, Code: code, Description: tr.Description,
+		return tokenReply{}, &GrantError{Status: resp.StatusCode, Code: code, Description: tr.Description,
 			Permanent: code == "invalid_grant" || code == "invalid_client" || code == "unauthorized_client"}
 	}
 	if tr.AccessToken == "" {
-		return Token{}, "", &TemporaryError{Err: errors.New("token endpoint answered without an access token")}
+		return tokenReply{}, &TemporaryError{Err: errors.New("token endpoint answered without an access token")}
 	}
 	at := now()
 	tok := Token{Access: tr.AccessToken, IssuedAt: at, ExpiresAt: at.Add(time.Duration(tr.ExpiresIn) * time.Second)}
 	if iat, exp, ok := jwtTimes(tr.AccessToken); ok {
 		tok.IssuedAt, tok.ExpiresAt = iat, exp
 	}
-	return tok, tr.RefreshToken, nil
+	return tokenReply{tok: tok, refresh: tr.RefreshToken, idToken: tr.IDToken}, nil
 }
 
 // jwtTimes reads iat and exp from the payload of a JWT. It does not verify anything: the

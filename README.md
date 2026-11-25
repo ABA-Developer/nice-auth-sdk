@@ -26,7 +26,7 @@ Each folder in [`examples/`](examples) is one `main` program for one role. Its s
 | [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
 | [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, the permission resolver, tenants |
 | [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs` |
-| [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `SignInToken`, `Contexts`, `Do`, `Disconnect` |
+| [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `SignInToken`, `Contexts`, `Do`, `Disconnect`, `PromptSelectAccount`, `EndSessionURL` |
 
 ```bash
 export NICE_ISSUER=https://auth.example.com NICE_SA_ID=sa_... NICE_SA_API_KEY=...
@@ -151,6 +151,39 @@ contexts, err := x.Contexts(ctx, userToken)
 
 [`examples/connect`](examples/connect/main.go) shows the whole flow with a picker.
 
+## Signing out and switching accounts
+
+A user who signs in with NICE has two sessions: the one of your application, which holds the refresh token, and the one of NICE in the browser. They end separately.
+
+- **`Disconnect`** revokes the refresh token at NICE (`/oauth/revoke`) and forgets the subject. It runs on the server and does not need the browser. The NICE session stays: the next sign-in completes at once with the same account.
+- **`EndSessionURL`** is where the browser goes so that NICE ends its own session (`/oauth/end_session`), and the tokens issued through it stop being renewed in every application. The next sign-in asks for the password. Only the browser can do it, since NICE reads its own cookie.
+
+Use them in this order:
+
+```go
+// "Switch account": revoke, end the local session, then let NICE show its account chooser.
+if err := c.Disconnect(ctx, subject); err != nil {
+	// NICE cannot be reached: keep the user signed in and let them try again.
+}
+authURL, err := c.AuthorizeURL(ctx, credentials.ConnectRequest{
+	Subject: subject, Session: sessionID, RedirectURI: callbackURL, Prompt: credentials.PromptSelectAccount,
+})
+
+// "Sign out": revoke, end the local session, then end the NICE session.
+if err := c.Disconnect(ctx, subject); err != nil { /* as above */ }
+endURL, err := c.EndSessionURL(credentials.EndSessionRequest{
+	PostLogoutRedirectURI: "https://app.example.com/signed-out", // optional
+	IDTokenHint:           idToken,                              // optional: Connection.IDToken
+})
+```
+
+- **`Prompt`**: `PromptSelectAccount` shows the account chooser, `PromptLogin` asks for the password again, and `PromptNone` signs in without any page or fails. With `PromptNone` and no NICE session, `HandleCallback` returns a `GrantError` with code `login_required`: treat it as "not signed in", not as a failure. Any other value is refused. `LoginHint` names the email NICE offers first.
+- **`PostLogoutRedirectURI`** must be registered as a post-logout redirect URI of the OAuth client. NICE ends its session before checking it, so with an unregistered one the user is signed out but stays on a `400 invalid_request` (`post_logout_redirect_uri invalid`) of NICE. Without it, NICE shows its own signed-out page.
+- **`Connection.IDToken`** is returned by `HandleCallback` and is not kept in the `Store`. It names the user (email, name): keep it in the session on the server only, if at all. The hint is optional, since the `client_id` in the URL already names the client, and an expired one is accepted.
+- **Access tokens still work until they expire.** Neither call recalls an access token that a service verifies offline. It stops working at its `exp`, at most the access token TTL of NICE.
+
+[`examples/connect`](examples/connect/main.go) has `/switch-account` and `/logout`.
+
 ## Reading errors
 
 ```go
@@ -169,7 +202,7 @@ case errors.Is(err, credentials.ErrForeignHost): // a request to another host th
 
 - **HTTPS.** The address of NICE and the address of a service must be `https`. `http` is accepted for loopback (`localhost`, `127.0.0.0/8`, `::1`), so a local stack needs no setting. For a network where TLS ends somewhere else, set `AllowInsecureHTTP` in the `Config`; no environment variable does it.
 - **No redirect to NICE.** The calls of the SDK to NICE follow no redirect, so a secret is never sent to where a redirect points.
-- **Secrets are not printed.** `Config`, `ExchangeConfig`, `FeedConfig`, and `Token` hide their secret when printed or logged. The JSON form of a `Token` stays whole because a `Store` keeps it that way: do not log a struct that holds a `Token` through a JSON encoder.
+- **Secrets are not printed.** `Config`, `ExchangeConfig`, `FeedConfig`, `Token`, `Connection`, and `EndSessionRequest` hide their secret when printed or logged. The JSON form of a `Token` stays whole because a `Store` keeps it that way: do not log a struct that holds a `Token` through a JSON encoder.
 - **Refresh tokens.** `FileStore` keeps them as files only their owner can read, not encrypted. In production, use a `Store` of your own that encrypts them.
 
 How to report a vulnerability is in [SECURITY.md](SECURITY.md).

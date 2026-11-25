@@ -18,6 +18,8 @@ type feedServer struct {
 	changes []feedChange
 	down    bool
 	queries []string
+	// auths is the Authorization header of every request; the feed takes none.
+	auths []string
 }
 
 func newFeedServer(t *testing.T) *feedServer {
@@ -27,11 +29,31 @@ func newFeedServer(t *testing.T) *feedServer {
 	return f
 }
 
+// changeKeys returns the key and the org key NICE gives a change recorded in org: of principal in org when there is
+// one, else of project when there is one, else of org itself.
+func changeKeys(org, principal, project string) (key, orgKey string) {
+	orgKey = FeedKey("o", org)
+	switch {
+	case principal != "":
+		return FeedKey("p", principal, org), orgKey
+	case project != "":
+		return FeedKey("j", project), orgKey
+	}
+	return orgKey, orgKey
+}
+
 func (f *feedServer) add(org, principal, project, kind string, at time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.changes = append(f.changes, feedChange{Seq: strconv.Itoa(len(f.changes) + 1), OrganizationID: org, PrincipalID: principal, ProjectID: project, Kind: kind,
+	key, orgKey := changeKeys(org, principal, project)
+	f.changes = append(f.changes, feedChange{Seq: strconv.Itoa(len(f.changes) + 1), Key: key, OrgKey: orgKey, Kind: kind,
 		OccurredAt: at.UTC().Format(time.RFC3339Nano)})
+}
+
+func (f *feedServer) authorizations() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.auths...)
 }
 
 func (f *feedServer) setDown(v bool) { f.mu.Lock(); f.down = v; f.mu.Unlock() }
@@ -45,10 +67,15 @@ func (f *feedServer) seen() []string {
 func (f *feedServer) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.queries = append(f.queries, r.URL.RawQuery)
+	f.auths = append(f.auths, r.Header.Get("Authorization"))
 	down := f.down
 	f.mu.Unlock()
-	if down || r.Header.Get("Authorization") != "ApiKey reader-key" {
+	if down {
 		http.Error(w, "no", http.StatusInternalServerError)
+		return
+	}
+	if _, sent := r.Header["Authorization"]; sent {
+		http.Error(w, "the feed takes no credential", http.StatusBadRequest)
 		return
 	}
 	q := r.URL.Query()
@@ -113,7 +140,7 @@ func startFeed(t *testing.T, v *Verifier, f *feedServer, over func(*FeedConfig))
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
-	fc := FeedConfig{BaseURL: f.srv.URL, APIKey: "reader-key", Wait: time.Second, MonitorEvery: 20 * time.Millisecond, SilentAfter: 400 * time.Millisecond,
+	fc := FeedConfig{BaseURL: f.srv.URL, Wait: time.Second, MonitorEvery: 20 * time.Millisecond, SilentAfter: 400 * time.Millisecond,
 		MinBackoff: 20 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, HTTP: f.srv.Client()}
 	if over != nil {
 		over(&fc)
@@ -267,12 +294,12 @@ func TestOnlyTheTouchedThingsAreRefused(t *testing.T) {
 func TestTheDenySetForgetsWhatTokensHaveOutlived(t *testing.T) {
 	d := newDenySet(31 * time.Minute)
 	base := time.Unix(vNow, 0)
-	d.mark("p:old", vOrg, 0, base.Add(-time.Hour), base)
-	d.mark("p:recent", vOrg, 0, base.Add(-time.Minute), base)
+	d.mark("key-old", vOrg, 0, base.Add(-time.Hour), base)
+	d.mark("key-recent", vOrg, 0, base.Add(-time.Minute), base)
 	if d.size() != 1 {
 		t.Fatalf("entries older than the token lifetime plus skew are dropped: %d", d.size())
 	}
-	if !d.stale(tokenVersion{iat: base.Add(-10 * time.Minute).Unix()}, denyKey{key: "p:recent"}) || d.stale(tokenVersion{iat: base.Unix()}, denyKey{key: "p:recent"}) {
+	if !d.stale(tokenVersion{iat: base.Add(-10 * time.Minute).Unix()}, denyKey{key: "key-recent"}) || d.stale(tokenVersion{iat: base.Unix()}, denyKey{key: "key-recent"}) {
 		t.Fatal("a recent entry refuses older tokens only")
 	}
 }
@@ -310,5 +337,92 @@ func TestARoleChangedChangeRefusesEveryOlderTokenOfThatOrganizationOnly(t *testi
 	}
 	if _, err := v.Verify(context.Background(), tokenIssued(t, s, now, nil)); err != nil {
 		t.Fatalf("a token issued after the change is fine: %v", err)
+	}
+}
+
+func TestTheFeedIsReadWithoutACredential(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	f := newFeedServer(t)
+	v := liveVerifier(t, s, nil)
+	startFeed(t, v, f, nil)
+	tok := tokenIssued(t, s, time.Now().Add(-10*time.Minute), nil)
+	f.add(vOrg, vUser, "", "principal_disabled", time.Now())
+	eventually(t, "the change reaches the verifier", 3*time.Second, func() bool { return stale(v, tok) })
+	auths := f.authorizations()
+	if len(auths) < 2 {
+		t.Fatalf("the replay and at least one poll: %d requests", len(auths))
+	}
+	for i, a := range auths {
+		if a != "" {
+			t.Fatalf("request %d of the feed carries Authorization %q", i, a)
+		}
+	}
+}
+
+func TestAStartNeedsNoCredential(t *testing.T) {
+	v, err := New(Config{Issuer: vIssuer, Service: vService, StaticJWKS: staticJWKS(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	if err := v.StartFeed(ctx, FeedConfig{BaseURL: "http://127.0.0.1:1", Wait: time.Second, MinBackoff: time.Second}); err != nil {
+		t.Fatalf("a FeedConfig with an address only starts: %v", err)
+	}
+}
+
+// A change names what it touched by its key and the organization it was recorded in by its org key, and refuses
+// the tokens whose keys it names.
+func TestAChangeRefusesTheTokensOfItsKey(t *testing.T) {
+	s := testSigner(t, "vector-key-1")
+	iat := vNow - 600
+	valid := claims(nil)
+	actAs := claims(map[string]any{"nice_act_as": vPlatform})
+	cases := []struct {
+		name          string
+		key, orgKey   string
+		at            int64
+		pv            string
+		refused, kept []map[string]any
+	}{
+		{name: "principal in the organization", key: FeedKey("p", vUser, vOrg), orgKey: FeedKey("o", vOrg), at: iat + 1,
+			refused: []map[string]any{valid, actAs}, kept: []map[string]any{claims(map[string]any{"sub": vSA}), claims(map[string]any{"nice_org_id": vOrg2})}},
+		{name: "project", key: FeedKey("j", vProject), orgKey: FeedKey("o", vOrg), at: iat + 1,
+			refused: []map[string]any{valid}, kept: []map[string]any{claims(map[string]any{"prj": vProject2})}},
+		{name: "organization", key: FeedKey("o", vOrg), orgKey: FeedKey("o", vOrg), at: iat + 1,
+			refused: []map[string]any{valid, claims(map[string]any{"sub": vSA, "prj": vProject2})}, kept: []map[string]any{claims(map[string]any{"nice_org_id": vOrg2})}},
+		{name: "principal in the act-as organization", key: FeedKey("p", vUser, vPlatform), orgKey: FeedKey("o", vPlatform), at: iat,
+			refused: []map[string]any{actAs}, kept: []map[string]any{valid}},
+		{name: "policy version in the second of the token", key: FeedKey("p", vUser, vOrg), orgKey: FeedKey("o", vOrg), at: iat, pv: "13",
+			refused: []map[string]any{valid, claims(map[string]any{"pv": 12})}, kept: []map[string]any{claims(map[string]any{"pv": 13}), claims(map[string]any{"pv": nil})}},
+		{name: "policy version of another organization", key: FeedKey("p", vUser, vOrg), orgKey: FeedKey("o", vOrg2), at: iat, pv: "50",
+			kept: []map[string]any{valid}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			v := fixedVerifier(t, s, 30*time.Minute, vectorNow, nil)
+			v.feed = &feedState{}
+			v.apply(feedPage{Seq: "1", Changes: []feedChange{{Seq: "1", Kind: "binding_deleted", Key: c.key, OrgKey: c.orgKey, PolicyVersion: c.pv,
+				OccurredAt: time.Unix(c.at, 0).UTC().Format(time.RFC3339)}}})
+			for _, cl := range c.refused {
+				if _, err := v.Verify(context.Background(), s.sign(t, cl)); reason(err) != ReasonStale {
+					t.Errorf("sub %v org %v prj %v act-as %v pv %v: %v, want %s", cl["sub"], cl["nice_org_id"], cl["prj"], cl["nice_act_as"], cl["pv"], err, ReasonStale)
+				}
+			}
+			for _, cl := range c.kept {
+				if _, err := v.Verify(context.Background(), s.sign(t, cl)); err != nil {
+					t.Errorf("sub %v org %v prj %v act-as %v pv %v: %v, want accepted", cl["sub"], cl["nice_org_id"], cl["prj"], cl["nice_act_as"], cl["pv"], err)
+				}
+			}
+		})
+	}
+}
+
+func TestAChangeWithoutAKeyIsIgnored(t *testing.T) {
+	v := fixedVerifier(t, testSigner(t, "vector-key-1"), 30*time.Minute, vectorNow, nil)
+	v.feed = &feedState{}
+	v.apply(feedPage{Seq: "1", Changes: []feedChange{{Seq: "1", Kind: "role_changed", OrgKey: FeedKey("o", vOrg), OccurredAt: vectorNow().UTC().Format(time.RFC3339)}}})
+	if v.deny.size() != 0 || v.FeedSeq() != 1 {
+		t.Fatalf("a change without a key sets nothing but moves the position: %d entries, seq %d", v.deny.size(), v.FeedSeq())
 	}
 }

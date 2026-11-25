@@ -14,13 +14,11 @@ import (
 	"time"
 )
 
-// FeedConfig configures the reader of the access change feed of NICE.
+// FeedConfig configures the reader of the access change feed of NICE. The feed needs no credential: a change
+// names what it touched only by keys (see FeedKey).
 type FeedConfig struct {
 	// BaseURL is the public address of NICE; default the issuer.
 	BaseURL string
-	// APIKey is the key of the Service Account that holds the nice.service role.
-	// It is left out of the JSON form, so a FeedConfig inside a logged struct does not show it.
-	APIKey string `json:"-"`
 	// Wait is how long NICE holds a read when there is no change, 0 to 30 seconds; default 25.
 	Wait time.Duration
 	// Replay is how far back a start reads; default the token lifetime plus skew.
@@ -35,17 +33,17 @@ type FeedConfig struct {
 	MinBackoff, MaxBackoff time.Duration
 }
 
-// String shows the FeedConfig without the API key; %v, %+v and %#v print it.
+// String shows the address and the wait of the FeedConfig; %v, %+v and %#v print it.
 func (fc FeedConfig) String() string {
-	return fmt.Sprintf("verify.FeedConfig{BaseURL:%q Wait:%s APIKey:%s}", fc.BaseURL, fc.Wait, redacted(fc.APIKey))
+	return fmt.Sprintf("verify.FeedConfig{BaseURL:%q Wait:%s}", fc.BaseURL, fc.Wait)
 }
 
 // GoString is String.
 func (fc FeedConfig) GoString() string { return fc.String() }
 
-// LogValue keeps the API key out of structured logs.
+// LogValue shows the address and the wait in structured logs.
 func (fc FeedConfig) LogValue() slog.Value {
-	return slog.GroupValue(slog.String("base_url", fc.BaseURL), slog.Duration("wait", fc.Wait), slog.String("api_key", redacted(fc.APIKey)))
+	return slog.GroupValue(slog.String("base_url", fc.BaseURL), slog.Duration("wait", fc.Wait))
 }
 
 type feedState struct {
@@ -69,14 +67,15 @@ func (v *Verifier) FeedSeq() int64 {
 	return v.feed.seq.Load()
 }
 
+// feedChange is one access change: Key is the FeedKey of what it touched, and OrgKey the FeedKey ("o", org) of the
+// organization it was recorded in.
 type feedChange struct {
-	Seq            string `json:"seq"`
-	OrganizationID string `json:"organization_id"`
-	Kind           string `json:"kind"`
-	PrincipalID    string `json:"principal_id"`
-	ProjectID      string `json:"project_id"`
-	PolicyVersion  string `json:"policy_version"`
-	OccurredAt     string `json:"occurred_at"`
+	Seq           string `json:"seq"`
+	Kind          string `json:"kind"`
+	Key           string `json:"key"`
+	OrgKey        string `json:"org_key"`
+	PolicyVersion string `json:"policy_version,omitempty"`
+	OccurredAt    string `json:"occurred_at"`
 }
 
 type feedPage struct {
@@ -89,9 +88,6 @@ type feedPage struct {
 // reading the feed in the background until ctx is done. A replay that fails does
 // not stop the start: the service runs degraded until the feed answers.
 func (v *Verifier) StartFeed(ctx context.Context, fc FeedConfig) error {
-	if fc.APIKey == "" {
-		return errConfig("FeedConfig.APIKey is required")
-	}
 	if fc.BaseURL == "" {
 		fc.BaseURL = v.cfg.Issuer
 	}
@@ -187,7 +183,6 @@ func (v *Verifier) fetchFeed(ctx context.Context, fc FeedConfig, q url.Values) (
 	if err != nil {
 		return page, err
 	}
-	req.Header.Set("Authorization", "ApiKey "+fc.APIKey)
 	resp, err := fc.HTTP.Do(req)
 	if err != nil {
 		return page, err
@@ -214,13 +209,8 @@ func (v *Verifier) apply(p feedPage) {
 		}
 		// A version that does not parse (an older NICE sends none) leaves only the time to compare.
 		pv, _ := strconv.ParseInt(c.PolicyVersion, 10, 64)
-		switch {
-		case c.PrincipalID != "":
-			v.deny.mark("p:"+c.PrincipalID+"|"+c.OrganizationID, c.OrganizationID, pv, at, now)
-		case c.ProjectID != "":
-			v.deny.mark("j:"+c.ProjectID, c.OrganizationID, pv, at, now)
-		default:
-			v.deny.mark("o:"+c.OrganizationID, c.OrganizationID, pv, at, now)
+		if c.Key != "" {
+			v.deny.mark(c.Key, c.OrgKey, pv, at, now)
 		}
 	}
 	if seq, err := strconv.ParseInt(p.Seq, 10, 64); err == nil && seq > v.feed.seq.Load() {

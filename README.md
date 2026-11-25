@@ -68,14 +68,14 @@ v, err := verify.New(verify.Config{
 	Issuer:   "https://auth.example.com",
 	Service:  "nadi",                    // the slug of the service; a token must be for it alone
 	JWKSFile: "/var/lib/nadi/jwks.json", // the service still verifies after a restart while NICE is down
-	Checker:  verify.NewHTTPChecker("https://auth.example.com", apiKey),
-	Resolver: verify.NewHTTPResolver("https://auth.example.com", apiKey),
+	Checker:  verify.NewHTTPChecker("https://auth.example.com"),
+	Resolver: verify.NewHTTPResolver("https://auth.example.com"),
 })
 if err != nil {
 	log.Fatal(err)
 }
 go v.Run(ctx)
-if err := v.StartFeed(ctx, verify.FeedConfig{APIKey: apiKey}); err != nil {
+if err := v.StartFeed(ctx, verify.FeedConfig{}); err != nil {
 	log.Fatal(err)
 }
 
@@ -98,7 +98,9 @@ func list(w http.ResponseWriter, r *http.Request) {
 - `Require` checks the permission in the `perms` claim.
 - `Sensitive()` adds an online check with NICE; when NICE does not answer, the request is refused with 503.
 - `StartFeed` makes a token issued before an access change refused with `token_stale`.
-- `Resolver` gets the permissions of a token that carries `perms_ref` instead of `perms`. NICE issues one when a principal holds so many permissions that they would not fit in a header. The verifier asks NICE once for each permission list and keeps it, so a handler reads `claims.Permissions` and `Require` works the same on every token. Without a resolver such a token is refused with 503, so set it in every service. It uses the API key of the access check and the feed.
+- `Resolver` gets the permissions of a token that carries `perms_ref` instead of `perms`. NICE issues one when a principal holds so many permissions that they would not fit in a header. The verifier asks NICE once for each permission list and keeps it, so a handler reads `claims.Permissions` and `Require` works the same on every token. Without a resolver such a token is refused with 503, so set it in every service.
+
+The service holds no credential of NICE. The feed needs none and names what changed only by hashed keys (`verify.FeedKey`). The online check and the resolution send the token of the request being handled as their `Authorization: Bearer`, and NICE reads the caller from it. They work only with the `Claims` that `Verify` returned.
 
 The full contract is in [docs/token-verification.md](docs/token-verification.md).
 

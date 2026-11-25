@@ -33,6 +33,9 @@ type Claims struct {
 	ActAs string `json:"nice_act_as"`
 	// hasPV is whether the token carries pv; a token without it is checked by the time it was issued only.
 	hasPV bool
+	// token is the raw token Verify read these claims from, forwarded by HTTPChecker and HTTPResolver. It is a
+	// pointer so that fmt prints an address, never the token; JSON leaves it out as it is unexported.
+	token *string
 }
 
 // UnmarshalJSON reads the claims, lifts act.sub into Actor, and notes whether pv is present.
@@ -57,6 +60,14 @@ func (c *Claims) UnmarshalJSON(b []byte) error {
 		c.PolicyVersion, c.hasPV = *raw.PV, true
 	}
 	return nil
+}
+
+// rawToken is the token Verify read c from, or "" for Claims built another way.
+func (c *Claims) rawToken() string {
+	if c == nil || c.token == nil {
+		return ""
+	}
+	return *c.token
 }
 
 // Has reports whether the token grants permission.

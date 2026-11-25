@@ -10,26 +10,28 @@ import (
 func TestTheDenySetKeepsTheLatestOfEachAxis(t *testing.T) {
 	d := newDenySet(31 * time.Minute)
 	base := time.Unix(vNow, 0)
-	d.mark("p:a", vOrg, 11, base, base)
-	d.mark("p:a", vOrg, 9, base.Add(-time.Minute), base) // an older change read later keeps the newer values
-	e := d.m["p:a"]
+	d.mark("key-a", vOrg, 11, base, base)
+	d.mark("key-a", vOrg, 9, base.Add(-time.Minute), base) // an older change read later keeps the newer values
+	e := d.m["key-a"]
 	if e.notBefore != base.Unix() || e.pv != 11 || e.org != vOrg {
 		t.Fatalf("entry %+v, want the second of base, pv 11 in %s", e, vOrg)
 	}
-	d.mark("p:a", vOrg, 0, base.Add(time.Second), base) // a change without a version moves only the time
-	if e = d.m["p:a"]; e.notBefore != base.Unix()+1 || e.pv != 11 {
+	d.mark("key-a", vOrg, 0, base.Add(time.Second), base) // a change without a version moves only the time
+	if e = d.m["key-a"]; e.notBefore != base.Unix()+1 || e.pv != 11 {
 		t.Fatalf("entry %+v after a change without a version", e)
 	}
-	d.mark("p:b", vOrg, 3, base.Add(-time.Hour), base)
-	if _, ok := d.m["p:b"]; ok {
+	d.mark("key-b", vOrg, 3, base.Add(-time.Hour), base)
+	if _, ok := d.m["key-b"]; ok {
 		t.Fatal("a change older than the retention is dropped, whatever its version")
 	}
 }
 
 func TestStaleByPolicyVersionAndByTime(t *testing.T) {
 	const s = vNow // the second of the change
-	key := denyKey{key: "p:" + vUser + "|" + vOrg}
-	actAs := denyKey{key: "p:" + vUser + "|" + vPlatform, actAs: true}
+	key := denyKey{key: FeedKey("p", vUser, vOrg)}
+	actAs := denyKey{key: FeedKey("p", vUser, vPlatform), actAs: true}
+	// The organizations are compared by their org keys, as the feed names them.
+	org, org2, platform := FeedKey("o", vOrg), FeedKey("o", vOrg2), FeedKey("o", vPlatform)
 	cases := []struct {
 		name  string
 		org   string
@@ -38,16 +40,16 @@ func TestStaleByPolicyVersionAndByTime(t *testing.T) {
 		token tokenVersion
 		stale bool
 	}{
-		{"same second, older pv", vOrg, 11, key, tokenVersion{iat: s, org: vOrg, pv: 10, hasPV: true}, true},
-		{"same second, pv of the change", vOrg, 11, key, tokenVersion{iat: s, org: vOrg, pv: 11, hasPV: true}, false},
-		{"later second, newer pv", vOrg, 11, key, tokenVersion{iat: s + 1, org: vOrg, pv: 12, hasPV: true}, false},
-		{"earlier second, even with a newer pv", vOrg, 11, key, tokenVersion{iat: s - 1, org: vOrg, pv: 12, hasPV: true}, true},
-		{"change of another organization", vOrg2, 50, key, tokenVersion{iat: s, org: vOrg, pv: 3, hasPV: true}, false},
-		{"change without a version", vOrg, 0, key, tokenVersion{iat: s, org: vOrg, pv: 3, hasPV: true}, false},
-		{"no pv, earlier second", vOrg, 11, key, tokenVersion{iat: s - 1, org: vOrg}, true},
-		{"no pv, same second", vOrg, 11, key, tokenVersion{iat: s, org: vOrg}, false},
-		{"act-as, same second", vPlatform, 40, actAs, tokenVersion{iat: s, org: vOrg, pv: 3, hasPV: true}, true},
-		{"act-as, later second", vPlatform, 40, actAs, tokenVersion{iat: s + 1, org: vOrg, pv: 3, hasPV: true}, false},
+		{"same second, older pv", org, 11, key, tokenVersion{iat: s, org: org, pv: 10, hasPV: true}, true},
+		{"same second, pv of the change", org, 11, key, tokenVersion{iat: s, org: org, pv: 11, hasPV: true}, false},
+		{"later second, newer pv", org, 11, key, tokenVersion{iat: s + 1, org: org, pv: 12, hasPV: true}, false},
+		{"earlier second, even with a newer pv", org, 11, key, tokenVersion{iat: s - 1, org: org, pv: 12, hasPV: true}, true},
+		{"change of another organization", org2, 50, key, tokenVersion{iat: s, org: org, pv: 3, hasPV: true}, false},
+		{"change without a version", org, 0, key, tokenVersion{iat: s, org: org, pv: 3, hasPV: true}, false},
+		{"no pv, earlier second", org, 11, key, tokenVersion{iat: s - 1, org: org}, true},
+		{"no pv, same second", org, 11, key, tokenVersion{iat: s, org: org}, false},
+		{"act-as, same second", platform, 40, actAs, tokenVersion{iat: s, org: org, pv: 3, hasPV: true}, true},
+		{"act-as, later second", platform, 40, actAs, tokenVersion{iat: s + 1, org: org, pv: 3, hasPV: true}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -64,7 +66,7 @@ func TestVerifyReadsWhetherTheTokenCarriesPV(t *testing.T) {
 	s := testSigner(t, "vector-key-1")
 	v := fixedVerifier(t, s, 30*time.Minute, func() time.Time { return time.Unix(vNow, 0) }, nil)
 	iat := vNow - 600
-	v.deny.mark("p:"+vUser+"|"+vOrg, vOrg, 13, time.Unix(iat, 0), time.Unix(vNow, 0))
+	v.deny.mark(FeedKey("p", vUser, vOrg), FeedKey("o", vOrg), 13, time.Unix(iat, 0), time.Unix(vNow, 0))
 	verify := func(over map[string]any) string {
 		_, err := v.Verify(context.Background(), s.sign(t, claims(over)))
 		return reason(err)
@@ -101,6 +103,7 @@ func TestTheFeedRefusesATokenOfTheSecondOfTheChange(t *testing.T) {
 func (f *feedServer) addVersion(org, principal, project, kind string, at time.Time, pv int64) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.changes = append(f.changes, feedChange{Seq: strconv.Itoa(len(f.changes) + 1), OrganizationID: org, PrincipalID: principal, ProjectID: project, Kind: kind,
+	key, orgKey := changeKeys(org, principal, project)
+	f.changes = append(f.changes, feedChange{Seq: strconv.Itoa(len(f.changes) + 1), Key: key, OrgKey: orgKey, Kind: kind,
 		PolicyVersion: strconv.FormatInt(pv, 10), OccurredAt: at.UTC().Format(time.RFC3339Nano)})
 }

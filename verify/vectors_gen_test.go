@@ -139,17 +139,17 @@ func TestWriteVectors(t *testing.T) {
 		{Name: "project_mismatch", Description: "the request names another project than the token", Token: valid, Now: vNow, Request: vectorRequest{Permission: "navi.orders.read", Project: vProject2}, Tenant: allowAll, Expect: deny(403, "insufficient_scope", "project_mismatch")},
 		{Name: "project_matches", Description: "the request names the project of the token", Token: valid, Now: vNow, Request: vectorRequest{Permission: "navi.orders.read", Project: vProject}, Tenant: allowAll, Expect: ok200},
 		{Name: "stale_principal", Description: "the principal was disabled after the token was issued", Token: valid, Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "principal_disabled", OccurredAt: vNow - 120}}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
+			Changes: []vectorChange{change(vOrg, vUser, "", "principal_disabled", vNow-120, 0)}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "issued_after_change", Description: "the change is older than the token", Token: valid, Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "principal_disabled", OccurredAt: vNow - 900}}, Request: read, Tenant: allowAll, Expect: ok200},
+			Changes: []vectorChange{change(vOrg, vUser, "", "principal_disabled", vNow-900, 0)}, Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "stale_organization", Description: "the organization was suspended after the token was issued", Token: valid, Now: vNow,
-			Changes: []vectorChange{{OrganizationID: vOrg, Kind: "org_state_changed", OccurredAt: vNow - 120}}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
+			Changes: []vectorChange{change(vOrg, "", "", "org_state_changed", vNow-120, 0)}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "stale_project", Description: "the project changed after the token was issued", Token: valid, Now: vNow,
-			Changes: []vectorChange{{OrganizationID: vOrg, ProjectID: vProject, Kind: "project_state_changed", OccurredAt: vNow - 120}}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
+			Changes: []vectorChange{change(vOrg, "", vProject, "project_state_changed", vNow-120, 0)}, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "change_of_another_principal", Description: "a change concerning someone else does not touch this token", Token: valid, Now: vNow,
-			Changes: []vectorChange{{PrincipalID: "usr_01a17b4e-3333-7000-8000-000000000003", OrganizationID: vOrg, Kind: "member_removed", OccurredAt: vNow - 120}}, Request: read, Tenant: allowAll, Expect: ok200},
+			Changes: []vectorChange{change(vOrg, "usr_01a17b4e-3333-7000-8000-000000000003", "", "member_removed", vNow-120, 0)}, Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "change_in_another_organization", Description: "a change of the same principal in another organization does not touch this token", Token: valid, Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg2, Kind: "member_removed", OccurredAt: vNow - 120}}, Request: read, Tenant: allowAll, Expect: ok200},
+			Changes: []vectorChange{change(vOrg2, vUser, "", "member_removed", vNow-120, 0)}, Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "sensitive_allowed", Description: "a sensitive operation passes when the online check allows it", Token: valid, Now: vNow, Request: vectorRequest{Permission: "navi.orders.read", Sensitive: true}, Check: "allow", Tenant: allowAll, Expect: ok200},
 		{Name: "sensitive_denied", Description: "a sensitive operation is refused when the online check denies it", Token: valid, Now: vNow, Request: vectorRequest{Permission: "navi.orders.read", Sensitive: true}, Check: "deny", Tenant: allowAll, Expect: deny(403, "insufficient_scope", "access_denied")},
 		{Name: "sensitive_check_down", Description: "a sensitive operation fails closed when NICE cannot be reached", Token: valid, Now: vNow, Request: vectorRequest{Permission: "navi.orders.read", Sensitive: true}, Check: "down", Tenant: allowAll, Expect: deny(503, "temporarily_unavailable", "access_check_unavailable")},
@@ -166,34 +166,34 @@ func TestWriteVectors(t *testing.T) {
 		{Name: "valid_act_as_token", Description: "a token of a platform operator acting in an organization it is not a member of: accepted like any other, the handler sees nice_act_as",
 			Token: actAs, Now: vNow, Request: read, Tenant: allowAll, Expect: vectorExpect{Status: 200, Tenant: vOrg, ActAs: vPlatform}},
 		{Name: "stale_act_as_operator", Description: "a token act-as is stale after a change of its principal in the organization nice_act_as names",
-			Token: actAs, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vPlatform, Kind: "binding_deleted", OccurredAt: vNow - 120}},
+			Token: actAs, Now: vNow, Changes: []vectorChange{change(vPlatform, vUser, "", "binding_deleted", vNow-120, 0)},
 			Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "change_in_platform_without_act_as", Description: "a change of the principal in the platform organization does not touch a token without nice_act_as",
-			Token: valid, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vPlatform, Kind: "binding_deleted", OccurredAt: vNow - 120}},
+			Token: valid, Now: vNow, Changes: []vectorChange{change(vPlatform, vUser, "", "binding_deleted", vNow-120, 0)},
 			Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "lifetime_exceeds_ttl", Description: "the token lives longer than the TTL plus the skew: a change that revoked it would be forgotten before it expires",
 			Token: good.sign(t, claims(map[string]any{"exp": vNow - 600 + 3600})), Now: vNow, Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_lifetime_exceeded")},
 		{Name: "missing_iat", Description: "a token without iat: its lifetime cannot be checked", Token: good.sign(t, claims(map[string]any{"iat": nil})), Now: vNow, Request: read,
 			Tenant: allowAll, Expect: deny(401, "invalid_token", "token_lifetime_exceeded")},
 		{Name: "stale_same_second_by_policy_version", Description: "the change came in the second the token was issued, with a higher policy version than pv",
-			Token: valid, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}},
+			Token: valid, Now: vNow, Changes: []vectorChange{change(vOrg, vUser, "", "binding_deleted", vNow-600, 13)},
 			Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "issued_after_change_same_second", Description: "the token was issued after the change, in the same second: pv equals the version of the change",
 			Token: good.sign(t, claims(map[string]any{"pv": 13})), Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}}, Request: read, Tenant: allowAll, Expect: ok200},
+			Changes: []vectorChange{change(vOrg, vUser, "", "binding_deleted", vNow-600, 13)}, Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "policy_version_other_org", Description: "a higher policy version of another organization does not touch the token",
-			Token: valid, Now: vNow, Changes: []vectorChange{{OrganizationID: vOrg2, Kind: "role_changed", OccurredAt: vNow - 600, PolicyVersion: 50}},
+			Token: valid, Now: vNow, Changes: []vectorChange{change(vOrg2, "", "", "role_changed", vNow-600, 50)},
 			Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "stale_act_as_same_second", Description: "the operator role was removed in the platform organization in the second the token act-as was issued",
-			Token: actAs, Now: vNow, Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vPlatform, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 40}},
+			Token: actAs, Now: vNow, Changes: []vectorChange{change(vPlatform, vUser, "", "binding_deleted", vNow-600, 40)},
 			Request: read, Tenant: allowAll, Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "stale_without_pv", Description: "a token without pv is judged by the second it was issued",
 			Token: good.sign(t, claims(map[string]any{"pv": nil})), Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 599, PolicyVersion: 13}}, Request: read, Tenant: allowAll,
+			Changes: []vectorChange{change(vOrg, vUser, "", "binding_deleted", vNow-599, 13)}, Request: read, Tenant: allowAll,
 			Expect: deny(401, "invalid_token", "token_stale")},
 		{Name: "same_second_without_pv", Description: "a token without pv of the second of the change is not refused: only pv can order them",
 			Token: good.sign(t, claims(map[string]any{"pv": nil})), Now: vNow,
-			Changes: []vectorChange{{PrincipalID: vUser, OrganizationID: vOrg, Kind: "binding_deleted", OccurredAt: vNow - 600, PolicyVersion: 13}}, Request: read, Tenant: allowAll, Expect: ok200},
+			Changes: []vectorChange{change(vOrg, vUser, "", "binding_deleted", vNow-600, 13)}, Request: read, Tenant: allowAll, Expect: ok200},
 		{Name: "perms_ref_resolved", Description: "a token that carries perms_ref instead of perms: the list NICE resolves it to holds the permission",
 			Token: byRef, Now: vNow, Request: read, Tenant: allowAll, Resolve: &vectorResolve{Answer: "match", Permissions: vRefPerms}, Expect: ok200},
 		{Name: "perms_ref_permission_missing", Description: "the list perms_ref names does not hold the permission the operation needs",
@@ -220,7 +220,13 @@ func TestWriteVectors(t *testing.T) {
 		{Permissions: []string{"b.x.read", "a.y.edit"}, PermsRef: vThirdRef},
 		{Permissions: []string{}, PermsRef: "v1.47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU"},
 	}
-	out := vectorFile{Version: 3, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs, PermsRefs: refs}
+	// The feed keys are literals too, the ones NICE tests its own keys with.
+	feedKeys := []vectorFeedKey{
+		{Lines: []string{"p", "usr_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c10", "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"}, Key: "v1.o2wpt4uj_fNkyq1KCM2mGFWNvlp4G9--DmBt-_kzktE"},
+		{Lines: []string{"j", "prj_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c12"}, Key: "v1.ofVCIXIg8asiIqlR6lDvutW9v_N3qYBhHsbdWChMUoQ"},
+		{Lines: []string{"o", "org_0192f2a0-7d4b-7d3f-9a1c-3b9e4f1a2c11"}, Key: "v1.h27C0cLZW2fvgYGA2awA6fJRWqF7Aylf5CsoVlvXPlY"},
+	}
+	out := vectorFile{Version: 4, Issuer: vIssuer, Service: vService, JWKS: jwks, Vectors: vs, PermsRefs: refs, FeedKeys: feedKeys}
 	b, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -244,6 +250,13 @@ func keepVectors(kept, made []vector) []vector {
 		out[i] = v
 	}
 	return out
+}
+
+// change is the vectorChange NICE records for principal in org, or for project when there is no principal, or for
+// org itself when there is neither.
+func change(org, principal, project, kind string, at, pv int64) vectorChange {
+	key, orgKey := changeKeys(org, principal, project)
+	return vectorChange{Key: key, OrgKey: orgKey, Kind: kind, OccurredAt: at, PolicyVersion: pv}
 }
 
 func mustJSON(v any) []byte { b, _ := json.Marshal(v); return b }

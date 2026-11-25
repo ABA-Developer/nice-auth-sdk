@@ -25,6 +25,13 @@ type vectorFile struct {
 	Vectors []vector        `json:"vectors"`
 	// PermsRefs are permission lists with the reference an implementation must compute for each.
 	PermsRefs []vectorPermsRef `json:"perms_refs,omitempty"`
+	// FeedKeys are lines with the feed key an implementation must compute for them.
+	FeedKeys []vectorFeedKey `json:"feed_keys,omitempty"`
+}
+
+type vectorFeedKey struct {
+	Lines []string `json:"lines"`
+	Key   string   `json:"key"`
 }
 
 type vectorPermsRef struct {
@@ -75,12 +82,13 @@ type vectorRequest struct {
 	ClientTenant string `json:"client_tenant,omitempty"`
 }
 
+// vectorChange is an access change as the feed gives it: Key is the feed key of what it touched, and OrgKey the
+// feed key of the organization it was recorded in.
 type vectorChange struct {
-	PrincipalID    string `json:"principal_id,omitempty"`
-	OrganizationID string `json:"organization_id"`
-	ProjectID      string `json:"project_id,omitempty"`
-	Kind           string `json:"kind"`
-	OccurredAt     int64  `json:"occurred_at"`
+	Key        string `json:"key"`
+	OrgKey     string `json:"org_key"`
+	Kind       string `json:"kind"`
+	OccurredAt int64  `json:"occurred_at"`
 	// PolicyVersion is policy_version of the change in its organization; 0 when the feed gives none.
 	PolicyVersion int64 `json:"policy_version,omitempty"`
 }
@@ -144,8 +152,8 @@ func (v vector) run(t *testing.T, f vectorFile) (int, map[string]string) {
 		if c.PolicyVersion != 0 {
 			pv = strconv.FormatInt(c.PolicyVersion, 10)
 		}
-		ver.apply(feedPage{Changes: []feedChange{{OrganizationID: c.OrganizationID, PrincipalID: c.PrincipalID, ProjectID: c.ProjectID,
-			Kind: c.Kind, PolicyVersion: pv, OccurredAt: time.Unix(c.OccurredAt, 0).UTC().Format(time.RFC3339)}}})
+		ver.apply(feedPage{Changes: []feedChange{{Key: c.Key, OrgKey: c.OrgKey, Kind: c.Kind, PolicyVersion: pv,
+			OccurredAt: time.Unix(c.OccurredAt, 0).UTC().Format(time.RFC3339)}}})
 	}
 	var opts []RequireOption
 	if v.Request.Project != "" {
@@ -186,7 +194,7 @@ func TestVectors(t *testing.T) {
 	if err := json.Unmarshal(raw, &f); err != nil {
 		t.Fatal(err)
 	}
-	if f.Version != 3 || len(f.Vectors) < 48 {
+	if f.Version != 4 || len(f.Vectors) < 48 {
 		t.Fatalf("vector file: version %d, %d vectors", f.Version, len(f.Vectors))
 	}
 	names := map[string]bool{}
@@ -205,6 +213,14 @@ func TestVectors(t *testing.T) {
 	for _, e := range f.PermsRefs {
 		if got := PermsRef(e.Permissions); got != e.PermsRef {
 			t.Errorf("PermsRef(%v) = %q, want %q", e.Permissions, got, e.PermsRef)
+		}
+	}
+	if len(f.FeedKeys) < 3 {
+		t.Error("the vector file has no lines to compute a feed key from")
+	}
+	for _, e := range f.FeedKeys {
+		if got := FeedKey(e.Lines...); got != e.Key {
+			t.Errorf("FeedKey(%q) = %q, want %q", e.Lines, got, e.Key)
 		}
 	}
 	for _, v := range f.Vectors {

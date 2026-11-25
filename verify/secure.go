@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// checkURL refuses an address that would carry the API key in the clear, or bring the keys of NICE over a link
-// anyone can change. https is always accepted; http is accepted for loopback (localhost, 127.0.0.0/8, ::1) and,
+// checkURL refuses an address that would carry the token of a caller in the clear, or bring the keys of NICE or
+// the access changes over a link anyone can change. https is always accepted; http is accepted for loopback (localhost, 127.0.0.0/8, ::1) and,
 // when allowInsecure is set, for any host. what names the address in the error, which never shows a password of
 // the URL. The credentials package has the same rule; the two packages do not import each other.
 func checkURL(what, raw string, allowInsecure bool) error {
@@ -37,19 +37,11 @@ func isLoopback(host string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// noRedirect is hc for the calls to NICE: it does not follow a redirect, so the API key is never sent to the
-// place a redirect names and the keys are never taken from there. hc itself is left as it is.
+// noRedirect is hc for the calls to NICE: it does not follow a redirect, so the token of a caller is never sent to
+// the place a redirect names and the keys and the access changes are never taken from there. hc itself is left as
+// it is.
 func noRedirect(hc *http.Client) *http.Client {
 	c := *hc
 	c.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &c
-}
-
-const redactedMark = "[redacted]"
-
-func redacted(secret string) string {
-	if secret == "" {
-		return `""`
-	}
-	return redactedMark
 }

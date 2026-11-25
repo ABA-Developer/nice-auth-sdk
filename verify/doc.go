@@ -17,6 +17,11 @@
 // check, the permission resolution) must be https; plain http is accepted for
 // loopback (localhost, 127.0.0.0/8, ::1) and for any other host only with
 // Config.AllowInsecureHTTP, HTTPChecker.WithInsecureHTTP or
-// HTTPResolver.WithInsecureHTTP. Those calls follow no redirect, so the API
-// key is never sent, and the keys never taken, where a redirect points.
+// HTTPResolver.WithInsecureHTTP. Those calls follow no redirect, so the token
+// of a caller is never sent, and the keys never taken, where a redirect points.
+//
+// The service holds no credential of NICE. The feed needs none, and names what
+// changed only by keys (FeedKey). The access check and the permission
+// resolution forward the token of the request they are about as their Bearer
+// credential, so only Claims returned by Verify can be checked or resolved.
 package verify

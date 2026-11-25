@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.3
+
+### Breaking
+
+- `verify` holds no credential of NICE. NICE drops the `nice.service` role and its API key, so a shared service no longer needs a Service Account:
+  - `FeedConfig.APIKey` is gone. `StartFeed` reads `GET /api/v1/access-changes` without an `Authorization` header, and a `FeedConfig` with only its defaults starts.
+  - `NewHTTPChecker(baseURL)` and `NewHTTPResolver(baseURL)` take no API key. They send the token of the request being handled as `Authorization: Bearer`, and NICE reads the principal, the organization, the project, `nice_act_as` and `perms_ref` from it. The body of the check is `{"permission": "<name>"}` only (no `principal_*`, `organization_id`, `project_id`, `act_as`), and that of the resolution is `{}`. A `401` from NICE fails closed like any other error, with `503`.
+  - `HTTPChecker` and `HTTPResolver` take the token from the `Claims` that `Verify` returned, which keep it in a field that JSON, `fmt` and `slog` do not show. `Claims` built another way carry no token, and the call is an error (fail closed). The `AccessChecker` and `PermissionResolver` interfaces are unchanged.
+  - The feed names a change by `key` and `org_key` in place of `organization_id`, `principal_id`, `project_id` and `key_id`. The verifier computes the same keys for each token and compares `policy_version` only when `org_key` is the org key of the token. A verifier of this version needs a NICE that sends the keys, and an older verifier reads no change from it.
+- The shared vectors are version 4: each change carries `key` and `org_key` in place of `principal_id`, `organization_id` and `project_id`. The vectors and their answers are those of version 3.
+
+### Added
+
+- `FeedKey` computes the key of a change: `"v1."` and the base64url SHA-256, without padding, of the lines joined by a newline (`"p", sub, org`; `"j", prj`; `"o", org`), the encoding of `PermsRef`. The vector file lists lines with their key in `feed_keys`.
+
 ## v0.2.2
 
 ### Added

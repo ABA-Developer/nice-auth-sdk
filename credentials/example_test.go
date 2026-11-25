@@ -247,6 +247,112 @@ func ExampleExchangeClient_Contexts() {
 	})
 }
 
+// The backend of an agent learns, right after the user signed in, which other services the user may call and in
+// which projects, and loads the operations of a service only when a prompt needs it.
+func ExampleExchangeClient_Services() {
+	ctx := context.Background()
+	c, err := credentials.New(credentials.Config{
+		Issuer: "https://auth.example.com", ClientID: "naia-web", ClientSecret: "client-secret", Kind: credentials.KindBFF,
+	})
+	if err != nil {
+		panic(err)
+	}
+	x, err := credentials.NewExchange(credentials.ExchangeConfig{
+		Issuer: "https://auth.example.com", ClientID: "naia-web", ClientSecret: "client-secret", // the same service client
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	signIn, err := c.SignInToken(ctx, "local-user-42")
+	if err != nil {
+		return // invalid_grant: the session ended, sign the user in again
+	}
+	// One read per session: the map is small. Nothing is kept by the SDK; read it again to see a change.
+	services, err := x.Services(ctx, signIn.Access)
+	if err != nil {
+		return
+	}
+	for _, o := range services.Organizations {
+		// o.ProjectsTruncated: NICE listed only part of the projects, so an answer over "every location" of this
+		// organization would not be complete.
+		for _, p := range o.Projects {
+			fmt.Printf("%s / %s: %v\n", o.Name, p.Name, p.Services) // Hermina / Lokasi A: [nadi]
+		}
+	}
+
+	// When a prompt needs nadi: its operations are the same in every project, so one read serves all locations.
+	ops, err := x.ServiceOperations(ctx, signIn.Access, "nadi")
+	var api *credentials.APIError
+	switch {
+	case errors.As(err, &api) && api.Code == "not_found":
+		return // the user may not call nadi anywhere
+	case err != nil:
+		return
+	}
+	for _, op := range ops.Operations {
+		// op.Key, op.Method, op.Path, op.Summary, op.RequestFields: what a tool definition is built from.
+		// op.Sensitive: ask the user before calling it, if the application wants that.
+		_ = op
+	}
+}
+
+// The backend of an agent answers "how many devices in locations A, B and C": one call of the same operation per
+// project, each with a token of its own project.
+func ExampleExchangeClient_CallOperation() {
+	ctx := context.Background()
+	c, err := credentials.New(credentials.Config{
+		Issuer: "https://auth.example.com", ClientID: "naia-web", ClientSecret: "client-secret", Kind: credentials.KindBFF,
+	})
+	if err != nil {
+		panic(err)
+	}
+	x, err := credentials.NewExchange(credentials.ExchangeConfig{
+		Issuer: "https://auth.example.com", ClientID: "naia-web", ClientSecret: "client-secret",
+	})
+	if err != nil {
+		panic(err)
+	}
+	// From Services and ServiceOperations, read with the sign-in token; never from the input of a user or a model.
+	var nadi credentials.MapService
+	var listDevices, getDevice credentials.ServiceOperation
+
+	// The subject of the calls is a token of the user for the service of this client (naia), in a project where
+	// naia is active: one of the projects Contexts lists. The sign-in token is refused here (invalid_grant).
+	subject, err := c.Token(ctx, credentials.Key{Subject: "local-user-42", Audience: "naia", Project: "prj_01a17b4d-0000-7000-8000-0000000000p0"})
+	if err != nil {
+		return
+	}
+
+	org := "org_01a17b49-56bc-7632-a32f-d47311c068c1" // Hermina
+	for _, project := range []string{"prj_01a17b49-56bc-7632-a32f-0000000000a1", "prj_01a17b49-56bc-7632-a32f-0000000000b2"} {
+		resp, err := x.CallOperation(ctx, subject.Access, credentials.OperationCall{
+			Service: nadi, Operation: listDevices, Org: org, Project: project,
+			Query: url.Values{"status": {"active"}},
+		})
+		var grant *credentials.GrantError
+		switch {
+		case errors.As(err, &grant):
+			continue // NICE refused the exchange: the user may not use nadi in this project now
+		case errors.Is(err, credentials.ErrInvalidOperationCall):
+			continue // the call was not sent: a path parameter is missing or is not one plain segment
+		case err != nil:
+			continue // NICE or nadi cannot be reached: report this location as failed
+		}
+		// The answer of nadi as it is: 200, or 403 when a permission is missing, or 503 to try again later.
+		_ = resp.Body.Close()
+	}
+
+	// A path parameter, often from a model: the SDK sends it as one escaped segment or refuses the call.
+	resp, err := x.CallOperation(ctx, subject.Access, credentials.OperationCall{
+		Service: nadi, Operation: getDevice, Org: org, Project: "prj_01a17b49-56bc-7632-a32f-0000000000a1",
+		PathParams: map[string]string{"id": "dev 01"}, // GET <endpoint><base path>/devices/dev%2001
+	})
+	if err == nil {
+		_ = resp.Body.Close()
+	}
+}
+
 // "Switch account" and "Sign out" of an application whose users sign in with NICE. Disconnect comes first in both:
 // it revokes the refresh token from the server, whether or not the browser still has a NICE session.
 func Example_signOutAndSwitchAccount() {

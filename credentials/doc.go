@@ -63,4 +63,27 @@
 // for the NICE API only. The backend of a service passes the token of the
 // request. The chosen organization and project then go in Key.Org and
 // Key.Project. An answer of the NICE API other than 2xx is an APIError.
+//
+// ExchangeClient.Services and ExchangeClient.ServiceOperations let an agent, or
+// any backend that works on behalf of a user, find what it may call instead of
+// listing it by hand. Services reads every page of GET /api/v1/me/services: the
+// organizations of the user, the projects of each, and in each project the
+// other services the user holds a permission of, with the name, endpoint and
+// base path of every service listed once. ServiceOperations reads GET
+// /api/v1/me/services/{slug}/operations: the operations of one service whose
+// permission the user holds, with their method, path, headers and request
+// fields. Both use the delegated token of the NICE API that Contexts uses, so
+// the three share one exchange per subject token, and both are answered from
+// the roles of the user at that moment, never from a claim of a token.
+//
+// ExchangeClient.CallOperation sends one call of a listed operation: the
+// address is the endpoint and base path of the service and the path of the
+// operation, each {name} of the path replaced by its value as one escaped
+// segment, sent through DoAs with a token for the service in the named
+// organization and project. Its subject token is a token of the user for the
+// service of the client, not the sign-in token. A call whose path parameters
+// are missing, unknown, or not one plain segment is refused with
+// ErrInvalidOperationCall before anything is exchanged. The answer of the
+// service is returned as it is. Whether an operation marked sensitive needs
+// the approval of the user stays with the application.
 package credentials

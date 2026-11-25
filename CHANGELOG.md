@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `ExchangeClient.Services` returns the service map of the user of a subject token from `GET /api/v1/me/services`: the organizations in the order NICE gives, the projects of each with the slugs of the other services the user holds a permission of, `projects_truncated`, and the name, description, endpoint and base path of every listed service once (`ServiceMap`, `MapService`, `MapOrganization`, `MapProject`). It reads every page (at most 100, each body at most 4 MiB) and returns an error and no map beyond the bounds.
+- `ExchangeClient.ServiceOperations` returns the operations of one service whose permission the user holds, from `GET /api/v1/me/services/{slug}/operations`, with their method, path, summary, permission, tag, sensitive mark, headers and request fields, and the tags of the service (`ServiceOperations`, `ServiceOperation`, `OperationHeader`, `RequestField`, `OperationTag`). An empty slug is refused before any call, the slug is sent as one escaped path segment, and the body is at most 16 MiB.
+- Both use the delegated token of the NICE API that `Contexts` uses, so the three share one exchange per subject token and exchange once more on `token_stale`. Their errors are those of `Contexts` (`GrantError`, `APIError`, `TemporaryError`).
+- `ExchangeClient.CallOperation` sends one call of a listed operation on behalf of a user (`OperationCall`): the address is the endpoint and base path of the service and the path of the operation, every `{name}` of the path is replaced by its value as one escaped segment, the headers of the operation replace those of the caller, and it is sent through `DoAs` with a token for the service in the named organization and project. The answer of the service is returned as it is. A call that is not complete, or a path parameter that is missing, unknown, empty, `.` or `..`, or that holds a slash, a backslash or a control character, is refused before anything is exchanged with an error that wraps `ErrInvalidOperationCall`.
+- `examples/exchange` prints the service map at `/services` and calls a read operation found through it at `/call/{operation}`. The README has a section on finding services and operations for an agent.
+
+These need a NICE that has the two operations; an older NICE answers `404`.
+
 ## v0.2.3
 
 ### Breaking

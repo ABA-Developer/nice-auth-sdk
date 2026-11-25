@@ -25,7 +25,7 @@ Each folder in [`examples/`](examples) is one `main` program for one role. Its s
 |---|---|---|
 | [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
 | [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, the permission resolver, tenants |
-| [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs` |
+| [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs`, `Services`, `ServiceOperations`, `CallOperation` |
 | [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `SignInToken`, `Contexts`, `Do`, `Disconnect`, `PromptSelectAccount`, `EndSessionURL` |
 
 ```bash
@@ -151,6 +151,64 @@ contexts, err := x.Contexts(ctx, userToken)
 
 [`examples/connect`](examples/connect/main.go) shows the whole flow with a picker.
 
+## Finding services and operations for an agent
+
+An agent, or any backend that works on behalf of a user, does not have to list its tools by hand. NICE tells it which other services the user may call, in which projects, and which operations of each service the user holds the permission of. Three functions of `ExchangeClient` cover the flow:
+
+| Step | Function | Subject token | What NICE is asked |
+|---|---|---|---|
+| 1 | `Client.SignInToken` | | a refresh with the base scopes: a token for the client itself |
+| 2 | `Services` | the sign-in token | `GET /api/v1/me/services`, every page |
+| 3 | `ServiceOperations` | the sign-in token | `GET /api/v1/me/services/{slug}/operations` |
+| 4 | `CallOperation` | a token of the user for the service of the client | one exchange per organization, project and service, then the call to the service |
+
+```go
+signIn, err := c.SignInToken(ctx, subject)
+
+// Once per session: where the user may call which service.
+services, err := x.Services(ctx, signIn.Access)
+for _, o := range services.Organizations {
+	for _, p := range o.Projects {
+		// p.Services: the slugs of the services the user may call in p, e.g. ["nadi"]
+	}
+}
+
+// When a prompt needs nadi. The operations of a service are the same in every project.
+ops, err := x.ServiceOperations(ctx, signIn.Access, "nadi")
+for _, op := range ops.Operations {
+	// op.Key, op.Method, op.Path, op.Summary, op.Permission, op.Sensitive, op.Headers, op.RequestFields
+}
+
+// A call needs a token of the user for the service of the client (here naia), in a project where naia is active:
+// one of the projects Contexts lists. One such token serves every organization and project of the map.
+naia, err := c.Token(ctx, credentials.Key{Subject: subject, Audience: "naia", Project: naiaProject})
+
+resp, err := x.CallOperation(ctx, naia.Access, credentials.OperationCall{
+	Service:    nadi,      // from services.Services
+	Operation:  getDevice, // from ops.Operations
+	Org:        org,     // an organization of the map
+	Project:    project, // one of its projects that lists nadi
+	PathParams: map[string]string{"id": "dev 01"}, // GET <endpoint><base path>/devices/dev%2001
+})
+```
+
+The backend of a service passes the verified token of the request as the subject token of all three.
+
+- **Steps 2 and 3 share one exchange** with `Contexts`: the delegated token of the NICE API is kept per subject token. Neither exchanges a token for a service, so listing tools costs that one exchange and none, with its `token.exchange` audit record, per service or project. The SDK keeps no map and no operations: read them again to see a change.
+- **The answers come from the roles of the user at that moment**, not from the `perms` claim of a token. A user whose tokens carry `perms_ref` gets the same map.
+- **The sign-in token cannot be the subject of `CallOperation`.** NICE exchanges it for the NICE API only, and answers `invalid_grant` for a service. At least one project must therefore have the service of the client active; the service need not be active in the projects of the map.
+- **`ProjectsTruncated`** is true when an organization has more projects than NICE lists (100). Treat it as a warning: an answer over "every location" of that organization is not complete. `ServiceOperations` is not affected by that limit.
+- **A service the user may not call is `404 not_found`** from `ServiceOperations`, as an `APIError`, whatever the reason.
+- **Path parameters.** `CallOperation` replaces every `{name}` of the path with its value as one escaped segment. Before anything is exchanged it refuses, with an error that wraps `ErrInvalidOperationCall` and names the parameter, a `{name}` without a value, a value for a name the path does not hold, and a value that is empty, is `.` or `..`, or holds a slash, a backslash or a control character. These values often come from a model, and a path that moves would call another operation with the same token.
+- **Headers and body.** The headers of `Operation.Headers` replace a header of the same name in `Header`, and `Authorization` is always the exchanged token. `Body` is sent as it is, as `application/json` when no content type is named.
+- **The answer of the service is returned as it is**, also a `403` or a `503`, with its body unread: close it. A refusal of the exchange is a `GrantError`; a 401 `token_stale` of the service is retried once with a new token and the same body.
+- **Take `MapService` from `Services` only.** The token of the user is sent to `Service.Endpoint`. Never fill it from the input of a user or of a model.
+- **Policy stays in the application.** The SDK does not look at `Sensitive`, does not ask for an approval, does not limit writes, and does not compare the query and the body with `RequestFields`, which name fields only (no nested body, no enum) and may be replaced by a catalog administrator. It also builds no tool definition for a model.
+- **Calls over many projects** cost one exchange per project, and `/oauth/token` is rate limited per client (30 a minute by default).
+- **It needs a NICE that has the two operations**, which are newer than NICE v1.0.0; an older NICE answers `404`. A delegated token exchanged before NICE was upgraded is answered `403 delegation_not_allowed` until it is exchanged again, at most its lifetime of 30 minutes.
+
+[`examples/exchange`](examples/exchange/main.go) prints the map at `/services` and calls a read operation at `/call/{operation}`.
+
 ## Signing out and switching accounts
 
 A user who signs in with NICE has two sessions: the one of your application, which holds the refresh token, and the one of NICE in the browser. They end separately.
@@ -193,8 +251,9 @@ switch {
 case errors.As(err, &grant) && grant.Permanent: // NICE refused for good: replace the key or ask the user to sign in again
 case errors.As(err, &grant):                    // NICE refused this request only (e.g. access_denied)
 case credentials.IsTemporary(err):              // NICE cannot be reached, or answered 5xx or 429: try again later
-case errors.As(err, &api):                      // the NICE API refused (Contexts), e.g. 403 user_required
+case errors.As(err, &api):                      // the NICE API refused (Contexts, Services, ServiceOperations), e.g. 403 user_required
 case errors.Is(err, credentials.ErrForeignHost): // a request to another host than the service of this client
+case errors.Is(err, credentials.ErrInvalidOperationCall): // CallOperation sent nothing: fix the call
 }
 ```
 

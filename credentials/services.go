@@ -159,9 +159,9 @@ type operationsBody struct {
 		Summary     string `json:"summary"`
 		Description string `json:"description"`
 		Permission  string `json:"permission"`
-		Tag        string `json:"tag"`
-		Sensitive  bool   `json:"sensitive"`
-		Headers    []struct {
+		Tag         string `json:"tag"`
+		Sensitive   bool   `json:"sensitive"`
+		Headers     []struct {
 			Name  string `json:"name"`
 			Value string `json:"value"`
 		} `json:"headers"`

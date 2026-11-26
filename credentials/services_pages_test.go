@@ -84,6 +84,33 @@ func TestServiceOperationsReadsAnOlderNICEWithoutTheNewFields(t *testing.T) {
 	}
 }
 
+func TestServiceOperationsCarriesTheDescriptionAndBusinessDomainOfTheService(t *testing.T) {
+	f, x, sub := newFakeAPI(t)
+	f.answer = func(w http.ResponseWriter, r *http.Request, n int) {
+		page := opsPage(0, 1, "")
+		page["description"], page["business_domain"] = "Device registry", "IoT"
+		page["operations"].([]map[string]any)[0]["description"] = "Devices of the project."
+		writeJSON(w, http.StatusOK, page)
+	}
+	got, err := x.ServiceOperations(context.Background(), sub, "nadi")
+	if err != nil || got.Description != "Device registry" || got.BusinessDomain != "IoT" || len(got.Operations) != 1 ||
+		got.Operations[0].Description != "Devices of the project." {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}
+
+func TestServiceOperationsReadsANICEWithoutTheDescriptionAndBusinessDomain(t *testing.T) {
+	f, x, sub := newFakeAPI(t)
+	f.answer = func(w http.ResponseWriter, r *http.Request, n int) {
+		w.Header().Set("ETag", `W/"12-a"`)
+		writeJSON(w, http.StatusOK, opsPage(0, 2, ""))
+	}
+	got, err := x.ServiceOperations(context.Background(), sub, "nadi")
+	if err != nil || got.Description != "" || got.BusinessDomain != "" || got.Service != "nadi" || len(got.Operations) != 2 {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}
+
 func TestServiceOperationsTakesAGzipAnswerAndBoundsItAfterDecompression(t *testing.T) {
 	f, x, sub := newFakeAPI(t)
 	f.answer = func(w http.ResponseWriter, r *http.Request, n int) {
@@ -146,6 +173,24 @@ func TestServiceOperationsReadsEveryPage(t *testing.T) {
 	}
 	if f.count() != 1 {
 		t.Fatalf("one exchange for every page: %d", f.count())
+	}
+}
+
+func TestServiceOperationsCarriesTheDescriptionAndBusinessDomainOverPages(t *testing.T) {
+	f, x, sub := newFakeAPI(t)
+	f.answer = func(w http.ResponseWriter, r *http.Request, n int) {
+		w.Header().Set("ETag", `W/"12-a"`)
+		page := opsPage(0, 2, "op1")
+		if r.URL.Query().Get("page_token") == "op1" {
+			page = opsPage(2, 1, "")
+		}
+		page["description"], page["business_domain"] = "Device registry", "IoT"
+		writeJSON(w, http.StatusOK, page)
+	}
+	got, err := x.ServiceOperations(context.Background(), sub, "nadi")
+	if err != nil || !reflect.DeepEqual(keysOfOps(got), []string{"op0", "op1", "op2"}) || got.Description != "Device registry" ||
+		got.BusinessDomain != "IoT" || f.calls() != 2 {
+		t.Fatalf("got %+v, %d calls, %v", got, f.calls(), err)
 	}
 }
 
@@ -284,5 +329,28 @@ func TestServiceOperationsIfChanged(t *testing.T) {
 	var ae *APIError
 	if _, _, err := x2.ServiceOperationsIfChanged(context.Background(), sub2, "nadi", "tag"); !errors.As(err, &ae) || ae.Status != 404 {
 		t.Fatalf("404: %v", err)
+	}
+}
+
+func TestServiceOperationsIfChangedCarriesTheNewBusinessDomain(t *testing.T) {
+	f, x, sub := newFakeAPI(t)
+	// The business domain changed after the answer that gave tag a, so NICE now answers tag b.
+	f.answer = func(w http.ResponseWriter, r *http.Request, n int) {
+		w.Header().Set("ETag", `W/"13-b"`)
+		if r.Header.Get("If-None-Match") == `W/"13-b"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		page := opsPage(0, 2, "")
+		page["catalog_version"], page["description"], page["business_domain"] = "13", "Device registry", "Smart city"
+		writeJSON(w, http.StatusOK, page)
+	}
+	got, changed, err := x.ServiceOperationsIfChanged(context.Background(), sub, "nadi", `W/"12-a"`)
+	if err != nil || !changed || got.BusinessDomain != "Smart city" || got.Description != "Device registry" || got.ETag != `W/"13-b"` {
+		t.Fatalf("changed: %+v %v %v", got, changed, err)
+	}
+	got, changed, err = x.ServiceOperationsIfChanged(context.Background(), sub, "nadi", got.ETag)
+	if err != nil || changed || !reflect.DeepEqual(got, ServiceOperations{}) {
+		t.Fatalf("not modified: %+v %v %v", got, changed, err)
 	}
 }

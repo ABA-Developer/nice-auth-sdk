@@ -176,6 +176,7 @@ for _, o := range services.Organizations {
 
 // When a prompt needs nadi. The operations of a service are the same in every project.
 ops, err := x.ServiceOperations(ctx, signIn.Access, "nadi")
+// ops.Description, ops.BusinessDomain: what the catalog says of nadi itself, e.g. "Device registry" and "IoT"
 for _, op := range ops.Operations {
 	// op.Key, op.Method, op.Path, op.Summary, op.Description, op.Permission, op.Sensitive, op.Headers, op.RequestFields
 	// each field: Location, Name, Required, Type, Description, Format, Enum, EnumTruncated
@@ -215,6 +216,7 @@ The backend of a service passes the verified token of the request as the subject
 - **Headers and body.** The headers of `Operation.Headers` replace a header of the same name in `Header`, and `Authorization` is always the exchanged token. `Body` is sent as it is, as `application/json` when no content type is named.
 - **The answer of the service is returned as it is**, also a `403` or a `503`, with its body unread: close it. A refusal of the exchange is a `GrantError`; a 401 `token_stale` of the service is retried once with a new token and the same body.
 - **Take `MapService` from `Services` only.** The token of the user is sent to `Service.Endpoint`. Never fill it from the input of a user or of a model.
+- **The service itself.** `ServiceOperations.Description` and `BusinessDomain` are the description and the business domain of the service in the catalog of NICE, so a model can be told what the service is for without another request. They are the same on every page, and a change of either gives the list another `ETag`, so `ServiceOperationsIfChanged` returns the new value. Both are empty when the service has none, and against an older NICE that does not send them; nothing fails.
 - **The list comes in pages.** `ServiceOperations` asks for pages of 500 and follows `next_page_token`; each page is at most 16 MiB, not the whole list, and NICE ends a page early at 4 MiB. When the list changes while it is read (another `ETag` on a later page, or `invalid_page_token`), it is read again from the first page once; a second change is an error. A NICE before paging is asked once more without it.
 - **Caching.** `ETag` stands for the whole list of the user, and `CatalogVersion` for the catalog of the service. `ServiceOperationsIfChanged` sends the tag with the first page and returns `changed == false` and no operations when NICE answers `304`; the SDK itself keeps nothing.
 - **Schemas.** `OperationSchemas` takes any number of keys, asks for each once, 20 to a request, and returns `Schemas` in the order given and `Missing` for the keys the user may not call or that are not active. A failure of any request returns no schemas. `InputSchema` and `Responses` are the JSON NICE sent; `{}` for an operation imported before NICE read schemas. `Truncated` is true when NICE cut a schema at 8 levels, a recursive reference or 64 KiB: tell the model it is not complete. `ResponseSchema(status)` gives the body schema for a status: exact, then `2XX`, then `default`.

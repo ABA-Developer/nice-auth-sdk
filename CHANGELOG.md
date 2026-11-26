@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.6
+
+### Added
+
+- `ServiceOperations.Description` and `BusinessDomain`: the description and the business domain of the service in the catalog of NICE, read from the first page of `GET /api/v1/me/services/{slug}/operations`. `ServiceOperationsIfChanged` returns the same values, so a change of either, which gives the list another `ETag`, reaches a caller that keeps the list.
+- `examples/exchange` prints both at `/operations`.
+
+Nothing is removed or changed for existing callers. The two values need NICE with `add-service-business-domain`; against an older NICE both are empty and nothing fails.
+
 ## v0.2.5
 
 ### Added

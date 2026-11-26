@@ -15,8 +15,8 @@
 //
 //	GET /devices           calls TARGET_URL/devices with DoAs, the address written by hand
 //	GET /services          prints the service map of the user: which services in which projects
-//	GET /operations        prints the operations of TARGET_SLUG the user may call; ?etag=W/"..." prints
-//	                       "unchanged" while the list is the same
+//	GET /operations        prints the description and the business domain of TARGET_SLUG and its operations the
+//	                       user may call; ?etag=W/"..." prints "unchanged" while the list is the same
 //	GET /schemas           prints the full schemas of ?keys=a,b of TARGET_SLUG as JSON
 //	GET /call/{operation}  calls one read operation of TARGET_SLUG found through the map, with
 //	                       ?org=org_...&project=prj_... and the path and query fields of the operation,
@@ -119,6 +119,7 @@ func main() {
 			return
 		}
 		_, _ = fmt.Fprintf(w, "%s catalog %d, %d operations, etag %s\n", ops.Service, ops.CatalogVersion, len(ops.Operations), ops.ETag)
+		_, _ = fmt.Fprintf(w, "description %q, business domain %q\n", ops.Description, ops.BusinessDomain)
 		for _, o := range ops.Operations {
 			_, _ = fmt.Fprintf(w, "%s %s %s (%s): %s\n", o.Key, o.Method, o.Path, o.Permission, o.Description)
 			for _, f := range o.RequestFields {

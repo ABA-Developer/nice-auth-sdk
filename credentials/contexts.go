@@ -158,9 +158,18 @@ func apiError(resp *http.Response) error {
 		Code      string `json:"error_code"`
 		Message   string `json:"message"`
 		RequestID string `json:"request_id"`
+		Errors    []struct {
+			Field string `json:"field"`
+			Code  string `json:"code"`
+		} `json:"errors"`
 	}
 	if json.Unmarshal(raw, &body) == nil {
 		e.Code, e.Message, e.RequestID = body.Code, body.Message, body.RequestID
+		for _, f := range body.Errors {
+			if f.Code == "unknown_field" {
+				e.unknownFields = append(e.unknownFields, f.Field)
+			}
+		}
 	}
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
 		return &TemporaryError{Err: e}

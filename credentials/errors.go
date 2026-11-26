@@ -49,6 +49,8 @@ type APIError struct {
 	Code      string
 	Message   string
 	RequestID string
+	// unknownFields are the request fields NICE refused as unknown, so that the SDK can tell an older NICE.
+	unknownFields []string
 }
 
 func (e *APIError) Error() string {

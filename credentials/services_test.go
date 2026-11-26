@@ -392,7 +392,7 @@ func TestServiceOperationsListsTheOperationsOfAService(t *testing.T) {
 	if f.count() != 1 || f.forms[0].Get("scope") != "nice:aud:nice" {
 		t.Fatalf("one exchange for the NICE API: %d %v", f.count(), f.forms)
 	}
-	if f.calls() != 1 || f.uri(0) != "/api/v1/me/services/nadi/operations" || f.bearers[0] == sub {
+	if f.calls() != 1 || f.uri(0) != "/api/v1/me/services/nadi/operations?page_size=500" || f.bearers[0] == sub {
 		t.Fatalf("one call with the delegated token: %v", f.uris)
 	}
 }
@@ -417,9 +417,9 @@ func TestServiceOperationsSendsTheSlugAsOneEscapedSegment(t *testing.T) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"code": 404, "error_code": "not_found"})
 	}
 	for _, c := range []struct{ slug, uri string }{
-		{"nadi/../../organizations", "/api/v1/me/services/nadi%2F..%2F..%2Forganizations/operations"},
-		{"a/b", "/api/v1/me/services/a%2Fb/operations"},
-		{"na di?x=1#y", "/api/v1/me/services/na%20di%3Fx=1%23y/operations"},
+		{"nadi/../../organizations", "/api/v1/me/services/nadi%2F..%2F..%2Forganizations/operations?page_size=500"},
+		{"a/b", "/api/v1/me/services/a%2Fb/operations?page_size=500"},
+		{"na di?x=1#y", "/api/v1/me/services/na%20di%3Fx=1%23y/operations?page_size=500"},
 	} {
 		n := f.calls()
 		if _, err := x.ServiceOperations(context.Background(), sub, c.slug); err == nil {

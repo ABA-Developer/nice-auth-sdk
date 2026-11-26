@@ -15,9 +15,13 @@
 //
 //	GET /devices           calls TARGET_URL/devices with DoAs, the address written by hand
 //	GET /services          prints the service map of the user: which services in which projects
+//	GET /operations        prints the operations of TARGET_SLUG the user may call; ?etag=W/"..." prints
+//	                       "unchanged" while the list is the same
+//	GET /schemas           prints the full schemas of ?keys=a,b of TARGET_SLUG as JSON
 //	GET /call/{operation}  calls one read operation of TARGET_SLUG found through the map, with
 //	                       ?org=org_...&project=prj_... and the path and query fields of the operation,
-//	                       e.g. /call/listDevices?project=prj_... or /call/getDevice?project=prj_...&id=dev-1
+//	                       e.g. /call/listDevices?project=prj_... or /call/getDevice?project=prj_...&id=dev-1;
+//	                       the properties the document marks x-secret are removed from the answer
 package main
 
 import (

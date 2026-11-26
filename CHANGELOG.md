@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.5
+
+### Added
+
+- `ServiceOperations` reads the list in pages of 500, following `next_page_token`, and bounds each page to 16 MiB instead of the whole list. When the list changes while it is read (another `ETag` on a later page, or `invalid_page_token`), it is read again from the first page once; a second change is an error. A NICE before paging, which refuses `page_size`, is asked once more without it.
+- `ServiceOperation.Description`, and `RequestField.Description`, `Format`, `Enum` and `EnumTruncated`, as NICE reads them from the document of the service. `ServiceOperations.CatalogVersion` and `ETag`.
+- `ExchangeClient.ServiceOperationsIfChanged` sends the `ETag` of an earlier answer as `If-None-Match` and returns `changed == false` and no operations on `304`.
+- `ExchangeClient.OperationSchemas` returns the full input and response schemas of operations from `GET /api/v1/me/services/{slug}/operation-schemas` (`OperationSchemas`, `OperationSchema`): any number of keys, each asked once, 20 to a request, schemas in the order given and `Missing` once each. A failure of any request returns no schemas. `OperationSchema.ResponseSchema(status)` picks the body schema of a status: exact, then range, then `default`.
+- `RedactSecrets` removes the properties a schema marks `x-secret: true` from a JSON body, keeping the order and the numbers of the rest.
+- The calls to the NICE API ask for gzip and bound the body after it is decompressed.
+- `examples/exchange` has `/operations` (with `?etag=`) and `/schemas?keys=`, and `/call/{operation}` removes secrets from the answer.
+
+Nothing is removed or changed for existing callers. Paging and schemas need NICE with `add-sdk-operation-schemas` and `add-operation-schemas`; against an older NICE the new fields are empty and `OperationSchemas` is a `404` `APIError`.
+
 ## v0.2.4
 
 ### Added

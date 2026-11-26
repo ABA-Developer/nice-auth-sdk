@@ -25,7 +25,7 @@ Each folder in [`examples/`](examples) is one `main` program for one role. Its s
 |---|---|---|
 | [`examples/service_account`](examples/service_account/main.go) | a machine caller | `ConfigFromEnv`, `HTTPClient`, reading errors |
 | [`examples/service`](examples/service/main.go) | a service that receives tokens | `Middleware`, `Require`, `Sensitive`, the feed, the permission resolver, tenants |
-| [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs`, `Services`, `ServiceOperations`, `CallOperation` |
+| [`examples/exchange`](examples/exchange/main.go) | a backend that calls another service on behalf of a user | `NewExchange`, `DoAs`, `Services`, `ServiceOperations(IfChanged)`, `OperationSchemas`, `RedactSecrets`, `CallOperation` |
 | [`examples/connect`](examples/connect/main.go) | a web backend that signs a user in and keeps the refresh token | `AuthorizeURL`, `HandleCallback`, `SignInToken`, `Contexts`, `Do`, `Disconnect`, `PromptSelectAccount`, `EndSessionURL` |
 
 ```bash
@@ -159,7 +159,8 @@ An agent, or any backend that works on behalf of a user, does not have to list i
 |---|---|---|---|
 | 1 | `Client.SignInToken` | | a refresh with the base scopes: a token for the client itself |
 | 2 | `Services` | the sign-in token | `GET /api/v1/me/services`, every page |
-| 3 | `ServiceOperations` | the sign-in token | `GET /api/v1/me/services/{slug}/operations` |
+| 3 | `ServiceOperations` | the sign-in token | `GET /api/v1/me/services/{slug}/operations`, every page |
+| 3b | `OperationSchemas` | the sign-in token | `GET /api/v1/me/services/{slug}/operation-schemas`, 20 keys a request |
 | 4 | `CallOperation` | a token of the user for the service of the client | one exchange per organization, project and service, then the call to the service |
 
 ```go
@@ -176,8 +177,19 @@ for _, o := range services.Organizations {
 // When a prompt needs nadi. The operations of a service are the same in every project.
 ops, err := x.ServiceOperations(ctx, signIn.Access, "nadi")
 for _, op := range ops.Operations {
-	// op.Key, op.Method, op.Path, op.Summary, op.Permission, op.Sensitive, op.Headers, op.RequestFields
+	// op.Key, op.Method, op.Path, op.Summary, op.Description, op.Permission, op.Sensitive, op.Headers, op.RequestFields
+	// each field: Location, Name, Required, Type, Description, Format, Enum, EnumTruncated
 }
+
+// Before the next prompt: read the list again only when it changed. Keep ops and ops.ETag between prompts.
+fresh, changed, err := x.ServiceOperationsIfChanged(ctx, signIn.Access, "nadi", ops.ETag)
+if changed {
+	ops = fresh
+}
+
+// When the model picks a tool: its full input and response schemas.
+schemas, err := x.OperationSchemas(ctx, signIn.Access, "nadi", []string{"listDevices", "getDevice"})
+// schemas.Schemas[i].InputSchema is a JSON Schema object (path, query, header, body), usable as a tool input schema.
 
 // A call needs a token of the user for the service of the client (here naia), in a project where naia is active:
 // one of the projects Contexts lists. One such token serves every organization and project of the map.
@@ -203,11 +215,15 @@ The backend of a service passes the verified token of the request as the subject
 - **Headers and body.** The headers of `Operation.Headers` replace a header of the same name in `Header`, and `Authorization` is always the exchanged token. `Body` is sent as it is, as `application/json` when no content type is named.
 - **The answer of the service is returned as it is**, also a `403` or a `503`, with its body unread: close it. A refusal of the exchange is a `GrantError`; a 401 `token_stale` of the service is retried once with a new token and the same body.
 - **Take `MapService` from `Services` only.** The token of the user is sent to `Service.Endpoint`. Never fill it from the input of a user or of a model.
-- **Policy stays in the application.** The SDK does not look at `Sensitive`, does not ask for an approval, does not limit writes, and does not compare the query and the body with `RequestFields`, which name fields only (no nested body, no enum) and may be replaced by a catalog administrator. It also builds no tool definition for a model.
+- **The list comes in pages.** `ServiceOperations` asks for pages of 500 and follows `next_page_token`; each page is at most 16 MiB, not the whole list, and NICE ends a page early at 4 MiB. When the list changes while it is read (another `ETag` on a later page, or `invalid_page_token`), it is read again from the first page once; a second change is an error. A NICE before paging is asked once more without it.
+- **Caching.** `ETag` stands for the whole list of the user, and `CatalogVersion` for the catalog of the service. `ServiceOperationsIfChanged` sends the tag with the first page and returns `changed == false` and no operations when NICE answers `304`; the SDK itself keeps nothing.
+- **Schemas.** `OperationSchemas` takes any number of keys, asks for each once, 20 to a request, and returns `Schemas` in the order given and `Missing` for the keys the user may not call or that are not active. A failure of any request returns no schemas. `InputSchema` and `Responses` are the JSON NICE sent; `{}` for an operation imported before NICE read schemas. `Truncated` is true when NICE cut a schema at 8 levels, a recursive reference or 64 KiB: tell the model it is not complete. `ResponseSchema(status)` gives the body schema for a status: exact, then `2XX`, then `default`.
+- **Secrets.** `RedactSecrets(schema.ResponseSchema(resp.StatusCode), body)` removes every property marked `x-secret: true` in the document of the service, also in arrays, `allOf`/`oneOf`/`anyOf` and `additionalProperties`, before the answer reaches a model or a log. Parts under a cut schema are not followed, and a body that is not JSON is an error.
+- **Policy stays in the application.** The SDK does not look at `Sensitive`, does not ask for an approval, does not limit writes, and does not compare the query and the body with `RequestFields` or `InputSchema`. Request fields may be replaced by a catalog administrator; `InputSchema` always follows the document. It also builds no tool definition for a model.
 - **Calls over many projects** cost one exchange per project, and `/oauth/token` is rate limited per client (30 a minute by default).
-- **It needs a NICE that has the two operations**, which are newer than NICE v1.0.0; an older NICE answers `404`. A delegated token exchanged before NICE was upgraded is answered `403 delegation_not_allowed` until it is exchanged again, at most its lifetime of 30 minutes.
+- **It needs a NICE that has the two operations**, which are newer than NICE v1.0.0; an older NICE answers `404`. Before NICE served schemas, request fields carry no description, format or enum, the list has no `ETag`, and `OperationSchemas` is a `404` `APIError`. A delegated token exchanged before NICE was upgraded is answered `403 delegation_not_allowed` until it is exchanged again, at most its lifetime of 30 minutes.
 
-[`examples/exchange`](examples/exchange/main.go) prints the map at `/services` and calls a read operation at `/call/{operation}`.
+[`examples/exchange`](examples/exchange/main.go) prints the map at `/services`, the operations at `/operations` (with `?etag=`), schemas at `/schemas?keys=`, and calls a read operation at `/call/{operation}` with its secrets removed.
 
 ## Signing out and switching accounts
 

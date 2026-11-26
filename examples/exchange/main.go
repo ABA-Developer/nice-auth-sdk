@@ -15,12 +15,17 @@
 //
 //	GET /devices           calls TARGET_URL/devices with DoAs, the address written by hand
 //	GET /services          prints the service map of the user: which services in which projects
+//	GET /operations        prints the operations of TARGET_SLUG the user may call; ?etag=W/"..." prints
+//	                       "unchanged" while the list is the same
+//	GET /schemas           prints the full schemas of ?keys=a,b of TARGET_SLUG as JSON
 //	GET /call/{operation}  calls one read operation of TARGET_SLUG found through the map, with
 //	                       ?org=org_...&project=prj_... and the path and query fields of the operation,
-//	                       e.g. /call/listDevices?project=prj_... or /call/getDevice?project=prj_...&id=dev-1
+//	                       e.g. /call/listDevices?project=prj_... or /call/getDevice?project=prj_...&id=dev-1;
+//	                       the properties the document marks x-secret are removed from the answer
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -100,6 +105,41 @@ func main() {
 		}
 	})
 
+	// The operations of the target the user may call, read page by page by the SDK. With ?etag= the list is read only
+	// when it changed since the answer that gave that ETag; an agent keeps the list and the ETag between questions.
+	mux.HandleFunc("GET /operations", func(w http.ResponseWriter, r *http.Request) {
+		ops, changed, err := x.ServiceOperationsIfChanged(r.Context(), bearer(r), target, r.URL.Query().Get("etag"))
+		if err != nil {
+			discoveryError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		if !changed {
+			_, _ = fmt.Fprintln(w, "unchanged")
+			return
+		}
+		_, _ = fmt.Fprintf(w, "%s catalog %d, %d operations, etag %s\n", ops.Service, ops.CatalogVersion, len(ops.Operations), ops.ETag)
+		for _, o := range ops.Operations {
+			_, _ = fmt.Fprintf(w, "%s %s %s (%s): %s\n", o.Key, o.Method, o.Path, o.Permission, o.Description)
+			for _, f := range o.RequestFields {
+				_, _ = fmt.Fprintf(w, "  %s %s required=%v type=%s format=%s enum=%v: %s\n", f.Location, f.Name, f.Required, f.Type,
+					f.Format, f.Enum, f.Description)
+			}
+		}
+	})
+
+	// The full schemas of some operations of the target, ?keys=a,b; the SDK sends them 20 to a request.
+	mux.HandleFunc("GET /schemas", func(w http.ResponseWriter, r *http.Request) {
+		keys := strings.Split(r.URL.Query().Get("keys"), ",")
+		schemas, err := x.OperationSchemas(r.Context(), bearer(r), target, keys)
+		if err != nil {
+			discoveryError(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(schemas)
+	})
+
 	// One read operation of the target, found through the map: the address, the method and the headers come from
 	// NICE, the values from the query of this request.
 	mux.HandleFunc("GET /call/{operation}", func(w http.ResponseWriter, r *http.Request) {
@@ -161,8 +201,23 @@ func main() {
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
-		// The answer of the service as it is, whatever its status.
-		relay(w, resp)
+		// Before the answer reaches the user, or a model, the properties the document marks x-secret are removed.
+		schemas, err := x.OperationSchemas(r.Context(), userToken, target, []string{op.Key})
+		if err != nil || len(schemas.Schemas) == 0 {
+			http.Error(w, "the schema of the operation cannot be read", http.StatusBadGateway)
+			return
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		if err != nil {
+			http.Error(w, "upstream not available", http.StatusBadGateway)
+			return
+		}
+		if clean, err := credentials.RedactSecrets(schemas.Schemas[0].ResponseSchema(resp.StatusCode), body); err == nil {
+			body = clean
+		}
+		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(body)
 	})
 
 	addr := env.Or("LISTEN_ADDR", "127.0.0.1:8083")

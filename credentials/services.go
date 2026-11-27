@@ -65,8 +65,14 @@ type MapProject struct {
 // ServiceOperations are the operations of one service whose permission the user holds in at least one project.
 type ServiceOperations struct {
 	// Service is the slug of the service.
-	Service    string
-	Operations []ServiceOperation
+	Service string
+	// Description is the description of the service in the catalog of NICE; empty when the service has none, and from
+	// a NICE that does not send it.
+	Description string
+	// BusinessDomain is the business domain of the service, e.g. IoT; empty when the service has none, and from a
+	// NICE that does not send it.
+	BusinessDomain string
+	Operations     []ServiceOperation
 	// Tags are the tags of the service in the order of its document.
 	Tags []OperationTag
 	// CatalogVersion grows each time NICE publishes the catalog of the service; 0 from a NICE that does not send it.
@@ -151,6 +157,8 @@ type servicesPage struct {
 
 type operationsBody struct {
 	Service        string `json:"service"`
+	Description    string `json:"description"`
+	BusinessDomain string `json:"business_domain"`
 	CatalogVersion int64  `json:"catalog_version,string"`
 	Operations     []struct {
 		Key         string `json:"key"`
@@ -309,7 +317,8 @@ func (x *ExchangeClient) readOperations(ctx context.Context, subjectToken, slug,
 		}
 		tag := ans.header.Get("ETag")
 		if page == 0 {
-			out = ServiceOperations{Service: body.Service, CatalogVersion: body.CatalogVersion, ETag: tag}
+			out = ServiceOperations{Service: body.Service, Description: body.Description, BusinessDomain: body.BusinessDomain,
+				CatalogVersion: body.CatalogVersion, ETag: tag}
 			for _, t := range body.Tags {
 				out.Tags = append(out.Tags, OperationTag{Name: t.Name, Description: t.Description})
 			}
